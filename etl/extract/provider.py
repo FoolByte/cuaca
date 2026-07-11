@@ -1,7 +1,6 @@
 """Abstract base class for weather data providers."""
 
 from abc import ABC, abstractmethod
-from typing import Tuple
 
 from etl.extract.models import NormalizedWeatherData
 
@@ -16,11 +15,12 @@ class WeatherProvider(ABC):
     @abstractmethod
     def fetch_current(
         self, location: str
-    ) -> Tuple[dict, NormalizedWeatherData]:
+    ) -> tuple[dict, NormalizedWeatherData]:
         """Fetch current weather for a location.
 
         Args:
-            location: Location identifier (e.g. "Medan Amplas" or lat,lon).
+            location: Location identifier — ADM4 code for BMKG
+                      (e.g. "12.71.01.1001"), kecamatan name for Mock.
 
         Returns:
             Tuple of (raw_api_response_as_dict, normalized_data).

@@ -21,7 +21,7 @@ Platform data cuaca Kota Medan (portfolio Junior Data Engineer): ETL Python → 
 | 0    | Foundation & Project Setup       | Done        |         |
 | 1    | Data Warehouse Schema            | Done        |         |
 | 2    | ETL: Extract                     | Done        |         |
-| 3    | ETL: Transform                   | Not Started |         |
+| 3    | ETL: Transform                   | Done        |         |
 | 4    | ETL: Load (Incremental)          | Not Started |         |
 | 5    | Scheduler: Apache Airflow        | Not Started |         |
 | 6    | Dashboard Analytics (Metabase)   | Not Started |         |
@@ -79,8 +79,7 @@ weather-data-platform/
 DATABASE_URL=postgresql://user:password@localhost:5432/weather_dwh
 
 # Weather Provider
-WEATHER_PROVIDER=bmkg          # bmkg | openweather | mock
-BMKG_API_BASE_URL=
+WEATHER_PROVIDER=bmkg          # bmkg | openweather | mock (bmkg = public API, no key)
 OPENWEATHER_API_KEY=
 
 # Scheduler

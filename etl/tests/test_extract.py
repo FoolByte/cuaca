@@ -1,14 +1,10 @@
 """Unit tests for the Extract module."""
 
-import json
-import os
-from datetime import datetime, timezone
 
 import pytest
 
 from etl.extract.mock import MockWeatherProvider
 from etl.extract.models import NormalizedWeatherData
-
 
 # ── MockWeatherProvider ──────────────────────────────────────────────
 
@@ -62,63 +58,70 @@ class TestBMKGParse:
     """Test BMKG response parsing without hitting the network."""
 
     SAMPLE_RESPONSE = {
-        "data": {
-            "temperature": {"value": 29.5, "unit": "C"},
-            "humidity": {"value": 78},
-            "pressure": {"value": 1012},
-            "wind_direction": {"direction": "SW"},
-            "wind_speed": 8.5,
-            "rainfall": 0.0,
-            "uv_index": 6.0,
-            "visibility": 10.0,
-            "cloud_coverage": 45.0,
-            "weather": {"code": "02", "description": "Cerah Berawan"},
-            "observation_time": "2024-01-15T10:00:00+07:00",
-        }
+        "lokasi": {
+            "adm1": "12",
+            "adm2": "12.71",
+            "adm3": "12.71.01",
+            "adm4": "12.71.01.1001",
+            "provinsi": "Sumatera Utara",
+            "kotkab": "Kota Medan",
+            "kecamatan": "Medan Kota",
+            "desa": "Kotamatsum III",
+            "lon": 98.6847,
+            "lat": 3.5839,
+            "timezone": "Asia/Jakarta",
+        },
+        "data": [
+            {
+                "lokasi": {},
+                "cuaca": [
+                    [
+                        {
+                            "datetime": "2026-07-11T03:00:00Z",
+                            "t": 31,
+                            "tcc": 100,
+                            "tp": 0,
+                            "weather": 3,
+                            "weather_desc": "Berawan",
+                            "weather_desc_en": "Mostly Cloudy",
+                            "wd_deg": 254,
+                            "wd": "SW",
+                            "wd_to": "NE",
+                            "ws": 4.1,
+                            "hu": 63,
+                            "vs": 5994,
+                            "vs_text": "< 6 km",
+                            "local_datetime": "2026-07-11 10:00:00",
+                            "image": "https://api-apps.bmkg.go.id/storage/icon/cuaca/berawan-am.svg",
+                        },
+                    ]
+                ],
+            }
+        ],
     }
 
     def test_parse_all_fields(self):
         from etl.extract.bmkg import BMKGProvider
 
-        norm = BMKGProvider._parse_response(self.SAMPLE_RESPONSE, "Medan Kota")
+        norm = BMKGProvider._parse_response(self.SAMPLE_RESPONSE, "12.71.01.1001")
 
-        assert norm.temperature == 29.5
-        assert norm.humidity == 78.0
-        assert norm.pressure == 1012.0
+        assert norm.temperature == 31.0
+        assert norm.humidity == 63.0
+        assert norm.pressure is None  # BMKG doesn't provide pressure
         assert norm.wind_direction == "SW"
-        assert norm.wind_speed == 8.5
+        assert norm.wind_speed == 4.1
         assert norm.rainfall == 0.0
-        assert norm.uv_index == 6.0
-        assert norm.visibility == 10.0
-        assert norm.cloud_coverage == 45.0
-        assert norm.condition_code == "02"
-        assert norm.condition_desc == "Cerah Berawan"
+        assert norm.uv_index is None  # BMKG doesn't provide UV
+        assert norm.visibility == pytest.approx(5.994, abs=0.01)
+        assert norm.cloud_coverage == 100.0
+        assert norm.condition_code == "3"
+        assert norm.condition_desc == "Berawan"
 
-    def test_parse_handles_missing_fields(self):
+    def test_parse_empty_data_raises(self):
         from etl.extract.bmkg import BMKGProvider
 
-        minimal = {
-            "data": {
-                "observation_time": "2024-01-15T10:00:00+07:00",
-            }
-        }
-        norm = BMKGProvider._parse_response(minimal, "Test")
-
-        assert norm.temperature is None
-        assert norm.humidity is None
-        assert norm.observed_at is not None
-
-    def test_parse_flat_structure(self):
-        """BMKG sometimes returns flat (no nested 'data' key)."""
-        from etl.extract.bmkg import BMKGProvider
-
-        flat = {
-            "temperature": 27.0,
-            "humidity": 80,
-            "observation_time": "2024-01-15T10:00:00+07:00",
-        }
-        norm = BMKGProvider._parse_response(flat, "Test")
-        assert norm.temperature == 27.0
+        with pytest.raises(ValueError, match="No forecast data"):
+            BMKGProvider._parse_response({"data": []}, "12.71.01.1001")
 
 
 # ── OpenWeatherProvider parsing ──────────────────────────────────────
@@ -177,12 +180,13 @@ class TestOpenWeatherParse:
 
 
 class TestConfig:
-    def test_default_to_mock(self, monkeypatch):
+    def test_default_to_bmkg(self, monkeypatch):
         monkeypatch.delenv("WEATHER_PROVIDER", raising=False)
+        from etl.extract.bmkg import BMKGProvider
         from etl.extract.config import get_provider
 
         provider = get_provider()
-        assert isinstance(provider, MockWeatherProvider)
+        assert isinstance(provider, BMKGProvider)
 
     def test_explicit_mock(self, monkeypatch):
         monkeypatch.setenv("WEATHER_PROVIDER", "mock")
@@ -191,21 +195,22 @@ class TestConfig:
         provider = get_provider()
         assert isinstance(provider, MockWeatherProvider)
 
-    def test_bmkg_missing_url_falls_back(self, monkeypatch):
+    def test_bmkg_uses_public_api(self, monkeypatch):
         monkeypatch.setenv("WEATHER_PROVIDER", "bmkg")
-        monkeypatch.delenv("BMKG_API_BASE_URL", raising=False)
+        from etl.extract.bmkg import BMKGProvider
         from etl.extract.config import get_provider
 
         provider = get_provider()
-        assert isinstance(provider, MockWeatherProvider)
+        assert isinstance(provider, BMKGProvider)
 
-    def test_openweather_missing_key_falls_back(self, monkeypatch):
+    def test_openweather_missing_key_falls_back_to_bmkg(self, monkeypatch):
         monkeypatch.setenv("WEATHER_PROVIDER", "openweather")
         monkeypatch.delenv("OPENWEATHER_API_KEY", raising=False)
+        from etl.extract.bmkg import BMKGProvider
         from etl.extract.config import get_provider
 
         provider = get_provider()
-        assert isinstance(provider, MockWeatherProvider)
+        assert isinstance(provider, BMKGProvider)
 
     def test_unknown_provider_raises(self, monkeypatch):
         monkeypatch.setenv("WEATHER_PROVIDER", "foobar")
@@ -213,3 +218,31 @@ class TestConfig:
 
         with pytest.raises(ValueError, match="Unknown WEATHER_PROVIDER"):
             get_provider()
+
+
+# ── ADM4 constants ──────────────────────────────────────────────────
+
+
+class TestMedanADM4:
+    def test_all_kelurahan_count(self):
+        from etl.extract.medan_adm4 import all_kelurahan_adm4
+
+        codes = all_kelurahan_adm4()
+        # 21 kecamatan, ~151 kelurahan total
+        assert len(codes) == 151
+
+    def test_adm4_format(self):
+        from etl.extract.medan_adm4 import all_kelurahan_adm4
+
+        codes = all_kelurahan_adm4()
+        for code in codes:
+            parts = code.split(".")
+            assert len(parts) == 4
+            assert parts[0] == "12"
+            assert parts[1] == "71"
+
+    def test_kecamatan_adm3_count(self):
+        from etl.extract.medan_adm4 import kecamatan_adm3
+
+        codes = kecamatan_adm3()
+        assert len(codes) == 21

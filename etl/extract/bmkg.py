@@ -1,13 +1,11 @@
-"""BMKG weather data provider.
+"""BMKG weather data provider — uses the public BMKG API (no API key).
 
-ponytail: Parsing is based on BMKG public API documentation structure.
-Needs a real API key/response to validate field mapping once available.
-Upgrade: plug in real BMKG_API_BASE_URL and adjust _parse_response().
+API: https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4={kode_adm4}
+Returns forecast data in 3-hour intervals; we pick the nearest/first entry.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Tuple
+from datetime import UTC, datetime
 
 import requests
 
@@ -17,79 +15,112 @@ from etl.extract.provider import WeatherProvider
 
 logger = logging.getLogger(__name__)
 
+BMKG_API_URL = "https://api.bmkg.go.id/publik/prakiraan-cuaca"
+
 
 class BMKGProvider(WeatherProvider):
-    """Fetches weather data from BMKG (Badan Meteorologi Indonesia) API."""
-
-    def __init__(self, base_url: str, api_key: str = "") -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+    """Fetches weather forecast data from BMKG public API."""
 
     def fetch_current(
-        self, location: str
-    ) -> Tuple[dict, NormalizedWeatherData]:
-        raw = retry_with_backoff(self._request, location)
-        normalized = self._parse_response(raw, location)
+        self, adm4_code: str
+    ) -> tuple[dict, NormalizedWeatherData]:
+        """Fetch weather for an ADM4 code (e.g. "12.71.01.1001").
+
+        Args:
+            adm4_code: Full ADM4 code for a kelurahan in Medan.
+
+        Returns:
+            Tuple of (raw_api_response_as_dict, normalized_data).
+
+        Raises:
+            ConnectionError: If the API is unreachable after retries.
+            ValueError: If the API returns unexpected data.
+        """
+        raw = retry_with_backoff(self._request, adm4_code)
+        normalized = self._parse_response(raw, adm4_code)
         return raw, normalized
 
-    def _request(self, location: str) -> dict:
-        url = f"{self.base_url}/weather/current"
-        headers = {}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+    @staticmethod
+    def _request(adm4_code: str) -> dict:
         resp = requests.get(
-            url,
-            params={"location": location},
-            headers=headers,
+            BMKG_API_URL,
+            params={"adm4": adm4_code},
             timeout=15,
         )
         resp.raise_for_status()
         return resp.json()
 
     @staticmethod
-    def _parse_response(data: dict, location: str) -> NormalizedWeatherData:
-        """Map BMKG response fields to NormalizedWeatherData.
+    def _parse_response(data: dict, adm4_code: str) -> NormalizedWeatherData:
+        """Map BMKG API response to NormalizedWeatherData.
 
-        Assumes BMKG returns a structure like:
+        Response shape:
         {
-            "data": {
-                "temperature": {"value": 28.5, "unit": "C"},
-                "humidity": {"value": 75},
-                ...
-                "weather": {"code": "0", "description": "Cerah"},
-                "observation_time": "2024-01-15T10:00:00+07:00"
-            }
+            "lokasi": { "kecamatan": "...", "desa": "...", ... },
+            "data": [
+                {
+                    "lokasi": { ... },
+                    "cuaca": [
+                        [ { "t": 31, "hu": 63, "ws": 4.1, "wd": "SW",
+                            "weather": 3, "weather_desc": "Berawan",
+                            "tcc": 100, "tp": 0, "vs": 5994,
+                            "local_datetime": "2026-07-11 10:00:00",
+                            "datetime": "2026-07-11T03:00:00Z", ... },
+                          ... ]   ← inner array = forecast intervals
+                    ]
+                }
+            ]
         }
+
+        We take the first forecast entry (nearest to current time).
         """
-        d = data.get("data", data)
-        weather = d.get("weather", {})
+        # Navigate into the response
+        data_list = data.get("data", [])
+        if not data_list:
+            raise ValueError(f"No forecast data in BMKG response for {adm4_code}")
+
+        cuaca_groups = data_list[0].get("cuaca", [])
+        if not cuaca_groups or not cuaca_groups[0]:
+            raise ValueError(f"No cuaca entries in BMKG response for {adm4_code}")
+
+        # First forecast entry (nearest to current)
+        entry = cuaca_groups[0][0]
+
+        # Parse observed_at from local_datetime (format: "2026-07-11 10:00:00")
+        local_dt_str = entry.get("local_datetime", "")
+        utc_dt_str = entry.get("datetime", "")
+        if local_dt_str:
+            observed_at = datetime.strptime(
+                local_dt_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=UTC)
+        elif utc_dt_str:
+            observed_at = datetime.fromisoformat(
+                utc_dt_str.replace("Z", "+00:00")
+            )
+        else:
+            observed_at = datetime.now(UTC)
+
         return NormalizedWeatherData(
-            observed_at=datetime.fromisoformat(
-                d.get("observation_time", d.get("local_datetime", ""))
-            ).astimezone(timezone.utc),
-            temperature=_safe_float(d, "temperature"),
-            humidity=_safe_float(d, "humidity"),
-            pressure=_safe_float(d, "pressure"),
-            wind_direction=d.get("wind_direction", {}).get("direction")
-            if isinstance(d.get("wind_direction"), dict)
-            else d.get("wind_direction"),
-            wind_speed=_safe_float(d, "wind_speed"),
-            rainfall=_safe_float(d, "rainfall"),
-            uv_index=_safe_float(d, "uv_index"),
-            visibility=_safe_float(d, "visibility"),
-            cloud_coverage=_safe_float(d, "cloud_coverage"),
-            condition_code=str(weather.get("code", "")) or None,
-            condition_desc=weather.get("description"),
+            observed_at=observed_at,
+            temperature=_as_float(entry.get("t")),
+            humidity=_as_float(entry.get("hu")),
+            pressure=None,  # BMKG public API doesn't provide pressure
+            wind_direction=entry.get("wd"),
+            wind_speed=_as_float(entry.get("ws")),
+            rainfall=_as_float(entry.get("tp")),
+            uv_index=None,  # BMKG public API doesn't provide UV index
+            visibility=_as_float(entry.get("vs", 0)) / 1000.0
+            if entry.get("vs") is not None
+            else None,  # meters → km
+            cloud_coverage=_as_float(entry.get("tcc")),
+            condition_code=str(entry.get("weather", "")) or None,
+            condition_desc=entry.get("weather_desc"),
         )
 
 
-def _safe_float(d: dict, key: str) -> float | None:
-    """Extract a numeric value, handling nested {'value': N} dicts."""
-    val = d.get(key)
+def _as_float(val) -> float | None:
     if val is None:
         return None
-    if isinstance(val, dict):
-        val = val.get("value")
     try:
         return float(val)
     except (TypeError, ValueError):
