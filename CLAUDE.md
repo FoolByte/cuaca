@@ -23,7 +23,7 @@ Platform data cuaca Kota Medan (portfolio Junior Data Engineer): ETL Python → 
 | 2    | ETL: Extract                     | Done        |         |
 | 3    | ETL: Transform                   | Done        |         |
 | 4    | ETL: Load (Incremental)          | Done        |         |
-| 5    | Scheduler: Apache Airflow        | In Progress |         |
+| 5    | Scheduler: Apache Airflow        | Done        |         |
 | 6    | Dashboard Analytics (Metabase)   | Not Started |         |
 | 7    | Backend API Layer                | Not Started |         |
 | 8    | Landing Page                     | Not Started |         |
