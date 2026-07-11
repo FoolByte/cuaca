@@ -82,7 +82,7 @@ def parse_raw_json(df: pd.DataFrame) -> pd.DataFrame:
             inner = data.get("data", data)
             if isinstance(inner, dict):
                 entry = inner
-                location_name = data.get("location", "Unknown")
+                location_name = raw.get("location", data.get("location", "Unknown"))
             else:
                 continue
         else:
@@ -102,12 +102,8 @@ def parse_raw_json(df: pd.DataFrame) -> pd.DataFrame:
                 "uv_index": entry.get("uv_index"),
                 "visibility": _parse_visibility(entry),
                 "cloud_coverage": entry.get("tcc", entry.get("cloud_coverage")),
-                "condition_code": str(
-                    entry.get("weather", entry.get("condition_code", ""))
-                ),
-                "condition_desc": entry.get(
-                    "weather_desc", entry.get("condition_desc")
-                ),
+                "condition_code": _extract_weather_field(entry, "code"),
+                "condition_desc": _extract_weather_field(entry, "description"),
             }
         )
 
@@ -120,6 +116,22 @@ def _parse_visibility(entry: dict) -> float | None:
     if vs is not None:
         return float(vs) / 1000.0  # meters → km
     return entry.get("visibility")
+
+
+def _extract_weather_field(entry: dict, field: str) -> str | None:
+    """Extract a field from the nested weather dict or flat keys.
+
+    Handles both formats:
+      - {"weather": {"code": "BC01", "description": "Cerah"}}
+      - {"condition_code": "BC01", "condition_desc": "Cerah"}
+    """
+    weather = entry.get("weather")
+    if isinstance(weather, dict):
+        return weather.get(field)
+    # Flat key fallback
+    flat_key = f"condition_{field}" if field == "code" else f"weather_{field}"
+    val = entry.get(flat_key, entry.get(field))
+    return str(val) if val is not None else None
 
 
 def run_transform(dsn: str | None = None) -> pd.DataFrame:

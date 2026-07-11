@@ -282,7 +282,7 @@ def insert_fact_weather(
                      wind_speed, rainfall, uv_index, visibility,
                      cloud_coverage, temp_avg, temp_max, temp_min, source)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT ON CONSTRAINT uq_fact_time_location DO NOTHING
+                ON CONFLICT (time_id, location_id) DO NOTHING
                 """,
                 (
                     time_id,
