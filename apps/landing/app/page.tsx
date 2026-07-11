@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getCurrentWeather } from "@/lib/api";
 import WeatherCard from "./components/WeatherCard";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Beranda",
   description:

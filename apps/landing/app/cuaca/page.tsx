@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getCurrentWeather } from "@/lib/api";
 import WeatherCard from "../components/WeatherCard";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Cuaca Saat Ini",
   description:

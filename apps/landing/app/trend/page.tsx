@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getTrend } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Trend Cuaca",
   description:

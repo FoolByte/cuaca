@@ -1,0 +1,6 @@
+# ETL dependencies — Weather Data Platform Medan
+pandas>=2.2,<3
+numpy>=1.26,<3
+psycopg2-binary>=2.9,<3
+requests>=2.31,<3
+python-dotenv>=1.0,<2

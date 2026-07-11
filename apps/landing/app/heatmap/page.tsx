@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getHeatmap } from "@/lib/api";
 import LeafletMap from "../components/LeafletMap";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Heatmap",
   description:

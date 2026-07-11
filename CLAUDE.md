@@ -27,7 +27,7 @@ Platform data cuaca Kota Medan (portfolio Junior Data Engineer): ETL Python → 
 | 6    | Dashboard Analytics (Metabase)   | Done        |         |
 | 7    | Backend API Layer                | Done        |         |
 | 8    | Landing Page                     | Done        |         |
-| 9    | Dockerization & Deployment       | Not Started |         |
+| 9    | Dockerization & Deployment       | Done        |         |
 | 10   | Documentation & Portfolio Polish | Not Started |         |
 
 Status yang valid: `Not Started`, `In Progress`, `Blocked`, `Done`. Update tabel ini sebagai bagian dari commit setiap kali fase berubah status.
