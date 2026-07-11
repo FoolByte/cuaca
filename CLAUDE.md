@@ -19,7 +19,7 @@ Platform data cuaca Kota Medan (portfolio Junior Data Engineer): ETL Python → 
 | Fase | Nama                             | Status      | Catatan |
 | ---- | -------------------------------- | ----------- | ------- |
 | 0    | Foundation & Project Setup       | Done        |         |
-| 1    | Data Warehouse Schema            | Not Started |         |
+| 1    | Data Warehouse Schema            | Done        |         |
 | 2    | ETL: Extract                     | Not Started |         |
 | 3    | ETL: Transform                   | Not Started |         |
 | 4    | ETL: Load (Incremental)          | Not Started |         |

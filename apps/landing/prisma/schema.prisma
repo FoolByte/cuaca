@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Dimension Tables ───────────────────────────────────────────────
+
+model DimTime {
+  timeId     Int       @id @default(autoincrement()) @map("time_id")
+  timestamp  DateTime  @db.Timestamp(6)
+  date       DateTime  @db.Date
+  hour       Int       @db.SmallInt
+  day        Int       @db.SmallInt
+  month      Int       @db.SmallInt
+  year       Int       @db.SmallInt
+  dayOfWeek  Int       @map("day_of_week") @db.SmallInt
+  isWeekend  Boolean   @map("is_weekend")
+
+  factWeathers FactWeather[]
+
+  @@map("dim_time")
+  @@index([timestamp])
+  @@index([date])
+}
+
+model DimLocation {
+  locationId  Int       @id @default(autoincrement()) @map("location_id")
+  city        String    @db.VarChar(100)
+  district    String    @db.VarChar(100)
+  latitude    Decimal?  @db.Decimal(9, 6)
+  longitude   Decimal?  @db.Decimal(9, 6)
+  regionLevel String?   @map("region_level") @db.VarChar(50)
+
+  factWeathers FactWeather[]
+
+  @@unique([city, district])
+  @@map("dim_location")
+}
+
+model DimWeather {
+  weatherId              Int      @id @default(autoincrement()) @map("weather_id")
+  conditionCode          String?  @map("condition_code") @db.VarChar(20)
+  conditionDesc          String?  @map("condition_desc") @db.VarChar(100)
+  tempClassification     String?  @map("temp_classification") @db.VarChar(50)
+  humidityClassification String?  @map("humidity_classification") @db.VarChar(50)
+  windClassification     String?  @map("wind_classification") @db.VarChar(50)
+  rainClassification     String?  @map("rain_classification") @db.VarChar(50)
+
+  factWeathers FactWeather[]
+
+  @@map("dim_weather")
+}
+
+// ─── Fact Table ─────────────────────────────────────────────────────
+
+model FactWeather {
+  factWeatherId Int       @id @default(autoincrement()) @map("fact_weather_id")
+  timeId        Int       @map("time_id")
+  locationId    Int       @map("location_id")
+  weatherId     Int       @map("weather_id")
+  temperature   Decimal?  @db.Decimal(5, 2)
+  humidity      Decimal?  @db.Decimal(5, 2)
+  pressure      Decimal?  @db.Decimal(7, 2)
+  windDirection String?   @map("wind_direction") @db.VarChar(20)
+  windSpeed     Decimal?  @map("wind_speed") @db.Decimal(5, 2)
+  rainfall      Decimal?  @db.Decimal(6, 2)
+  uvIndex       Decimal?  @map("uv_index") @db.Decimal(4, 2)
+  visibility    Decimal?  @db.Decimal(5, 2)
+  cloudCoverage Decimal?  @map("cloud_coverage") @db.Decimal(5, 2)
+  tempAvg       Decimal?  @map("temp_avg") @db.Decimal(5, 2)
+  tempMax       Decimal?  @map("temp_max") @db.Decimal(5, 2)
+  tempMin       Decimal?  @map("temp_min") @db.Decimal(5, 2)
+  source        String?   @db.VarChar(50)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  dimTime     DimTime     @relation(fields: [timeId], references: [timeId])
+  dimLocation DimLocation @relation(fields: [locationId], references: [locationId])
+  dimWeather  DimWeather  @relation(fields: [weatherId], references: [weatherId])
+
+  @@unique([timeId, locationId], name: "uq_fact_time_location")
+  @@map("fact_weather")
+  @@index([timeId])
+  @@index([locationId])
+  @@index([createdAt])
+}
+
+// ─── Staging Table (outside star schema) ────────────────────────────
+
+model RawWeatherObservation {
+  rawId       Int       @id @default(autoincrement()) @map("raw_id")
+  source      String    @db.VarChar(50)
+  rawJson     Json      @map("raw_json") @db.JsonB
+  observedAt  DateTime  @map("observed_at") @db.Timestamp(6)
+  ingestedAt  DateTime  @default(now()) @map("ingested_at") @db.Timestamp(6)
+  processed   Boolean   @default(false)
+
+  @@map("raw_weather_observations")
+  @@index([source])
+  @@index([observedAt])
+  @@index([processed])
+}
