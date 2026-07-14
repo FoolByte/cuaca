@@ -13,10 +13,25 @@ export async function GET(request: NextRequest) {
   try {
     const district = request.nextUrl.searchParams.get("district");
 
+    // Round to next 3-hour BMKG slot
+    const now = new Date();
+    const h = now.getUTCHours();
+    const nextSlot = new Date(now);
+    nextSlot.setUTCMinutes(0, 0, 0);
+    if (h % 3 === 0 && now.getUTCMinutes() === 0) {
+      // exactly on a slot — use it
+    } else {
+      nextSlot.setUTCHours(Math.ceil(h / 3) * 3, 0, 0, 0);
+    }
+
     const rows = district
       ? await prisma.$queryRaw<CurrentRow[]>`
-          SELECT DISTINCT ON (dl.district)
-            dl.district, dl.latitude, dl.longitude,
+          WITH target AS (
+            SELECT MIN(dt.timestamp) AS ts
+            FROM dim_time dt
+            WHERE dt.timestamp >= ${nextSlot.toISOString()}::timestamp
+          )
+          SELECT dl.district, dl.latitude, dl.longitude,
             fw.temperature, fw.humidity, fw.pressure,
             fw.wind_direction, fw.wind_speed, fw.rainfall,
             fw.visibility, fw.cloud_coverage,
@@ -28,13 +43,17 @@ export async function GET(request: NextRequest) {
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+          CROSS JOIN target
           WHERE dl.district = ${district}
-            AND dt.timestamp <= NOW()
-          ORDER BY dl.district, dt.timestamp DESC
+            AND dt.timestamp = target.ts
         `
       : await prisma.$queryRaw<CurrentRow[]>`
-          SELECT DISTINCT ON (dl.district)
-            dl.district, dl.latitude, dl.longitude,
+          WITH target AS (
+            SELECT MIN(dt.timestamp) AS ts
+            FROM dim_time dt
+            WHERE dt.timestamp >= ${nextSlot.toISOString()}::timestamp
+          )
+          SELECT dl.district, dl.latitude, dl.longitude,
             fw.temperature, fw.humidity, fw.pressure,
             fw.wind_direction, fw.wind_speed, fw.rainfall,
             fw.visibility, fw.cloud_coverage,
@@ -46,8 +65,8 @@ export async function GET(request: NextRequest) {
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-          WHERE dt.timestamp <= NOW()
-          ORDER BY dl.district, dt.timestamp DESC
+          CROSS JOIN target
+          WHERE dt.timestamp = target.ts
         `;
 
     if (rows.length === 0) {
