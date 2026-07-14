@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     const kecamatan = request.nextUrl.searchParams.get("kecamatan");
     const limitParam = request.nextUrl.searchParams.get("limit");
     const limit = Math.min(
-      Math.max(parseInt(limitParam ?? "12", 10) || 12, 1),
-      48
+      Math.max(parseInt(limitParam ?? "24", 10) || 24, 1),
+      96
     );
 
     const rows = adm4
@@ -41,68 +41,38 @@ export async function GET(request: NextRequest) {
           SELECT district, temperature, humidity, rainfall, wind_speed,
                  cloud_coverage, condition_desc, temp_classification,
                  observed_at, temp_avg, temp_max, temp_min
-          FROM (
-            SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
-                   fw.wind_speed, fw.cloud_coverage, dw.condition_desc,
-                   dw.temp_classification, dt.timestamp AS observed_at,
-                   fw.temp_avg, fw.temp_max, fw.temp_min,
-                   ROW_NUMBER() OVER (
-                     PARTITION BY dl.district ORDER BY dt.timestamp ASC
-                   ) AS rn
-            FROM fact_weather fw
-            JOIN dim_time dt ON fw.time_id = dt.time_id
-            JOIN dim_location dl ON fw.location_id = dl.location_id
-            JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-            WHERE dl.district = ${adm4}
-              AND dt.timestamp >= NOW()
-          ) sub
-          WHERE rn <= ${limit}
-          ORDER BY district, observed_at ASC
+          FROM fact_weather fw
+          JOIN dim_time dt ON fw.time_id = dt.time_id
+          JOIN dim_location dl ON fw.location_id = dl.location_id
+          JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+          WHERE dl.district = ${adm4}
+            AND dt.timestamp >= NOW()
+          ORDER BY observed_at ASC
         `
       : kecamatan
         ? await prisma.$queryRaw<ForecastRow[]>`
             SELECT district, temperature, humidity, rainfall, wind_speed,
                    cloud_coverage, condition_desc, temp_classification,
                    observed_at, temp_avg, temp_max, temp_min
-            FROM (
-              SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
-                     fw.wind_speed, fw.cloud_coverage, dw.condition_desc,
-                     dw.temp_classification, dt.timestamp AS observed_at,
-                     fw.temp_avg, fw.temp_max, fw.temp_min,
-                     ROW_NUMBER() OVER (
-                       PARTITION BY dl.district ORDER BY dt.timestamp ASC
-                     ) AS rn
-              FROM fact_weather fw
-              JOIN dim_time dt ON fw.time_id = dt.time_id
-              JOIN dim_location dl ON fw.location_id = dl.location_id
-              JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-              WHERE dl.district LIKE ${kecamatan + ".%"}
-                AND dt.timestamp >= NOW()
-            ) sub
-            WHERE rn <= ${limit}
-            ORDER BY district, observed_at ASC
+            FROM fact_weather fw
+            JOIN dim_time dt ON fw.time_id = dt.time_id
+            JOIN dim_location dl ON fw.location_id = dl.location_id
+            JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+            WHERE dl.district LIKE ${kecamatan + ".%"}
+              AND dt.timestamp >= NOW()
+            ORDER BY observed_at ASC
           `
         : await prisma.$queryRaw<ForecastRow[]>`
-          SELECT district, temperature, humidity, rainfall, wind_speed,
-                 cloud_coverage, condition_desc, temp_classification,
-                 observed_at, temp_avg, temp_max, temp_min
-          FROM (
-            SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
-                   fw.wind_speed, fw.cloud_coverage, dw.condition_desc,
-                   dw.temp_classification, dt.timestamp AS observed_at,
-                   fw.temp_avg, fw.temp_max, fw.temp_min,
-                   ROW_NUMBER() OVER (
-                     PARTITION BY dl.district ORDER BY dt.timestamp ASC
-                   ) AS rn
+            SELECT district, temperature, humidity, rainfall, wind_speed,
+                   cloud_coverage, condition_desc, temp_classification,
+                   observed_at, temp_avg, temp_max, temp_min
             FROM fact_weather fw
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
             WHERE dt.timestamp >= NOW()
-          ) sub
-          WHERE rn <= ${limit}
-          ORDER BY district, observed_at ASC
-        `;
+            ORDER BY district, observed_at ASC
+          `;
 
     if (rows.length === 0) {
       return NextResponse.json(
