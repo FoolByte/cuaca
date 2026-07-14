@@ -5,6 +5,7 @@ Returns forecast data in 3-hour intervals; we pick the nearest/first entry.
 """
 
 import logging
+import os
 from datetime import UTC, datetime, timezone, timedelta
 
 import requests
@@ -15,7 +16,10 @@ from etl.extract.provider import WeatherProvider
 
 logger = logging.getLogger(__name__)
 
-BMKG_API_URL = "https://api.bmkg.go.id/publik/prakiraan-cuaca"
+BMKG_API_URL = os.environ.get(
+    "BMKG_API_URL",
+    "https://api.bmkg.go.id/publik/prakiraan-cuaca",
+)
 
 
 class BMKGProvider(WeatherProvider):
