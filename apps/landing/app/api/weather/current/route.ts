@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
           WHERE dl.district = ${district}
+            AND dt.timestamp <= NOW()
           ORDER BY dl.district, dt.timestamp DESC
         `
       : await prisma.$queryRaw<CurrentRow[]>`
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+          WHERE dt.timestamp <= NOW()
           ORDER BY dl.district, dt.timestamp DESC
         `;
 
