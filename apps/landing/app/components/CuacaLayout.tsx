@@ -2,16 +2,28 @@
 
 import { useState, useCallback } from "react";
 import MedanSvgMap from "./MedanSvgMap";
-import type { MapWeatherData } from "@/lib/api";
+import AlertBanner from "./AlertBanner";
+import type { MapWeatherData, AlertData } from "@/lib/api";
 import type { SvgFeature } from "@/lib/geo-to-svg";
 
 type WeatherItem = MapWeatherData["data"][number];
+
+interface AlertPath {
+  path: string;
+  event: string;
+  severity: string;
+  headline: string;
+  expires: string;
+  web: string;
+}
 
 interface Props {
   kecamatanFeatures: (SvgFeature & { centroid: [number, number] })[];
   kelurahanFeatures: SvgFeature[];
   weatherByName: Record<string, WeatherItem>;
   viewBox: string;
+  alerts?: AlertData["alerts"];
+  alertPaths?: AlertPath[];
 }
 
 // Continuous HSL gradient: blue (18°C) → cyan → green → yellow → red (38°C)
@@ -27,6 +39,8 @@ export default function CuacaLayout({
   kelurahanFeatures,
   weatherByName,
   viewBox,
+  alerts = [],
+  alertPaths = [],
 }: Props) {
   const [selected, setSelected] = useState<WeatherItem | null>(null);
   const [selectedKelName, setSelectedKelName] = useState("");
@@ -76,6 +90,7 @@ export default function CuacaLayout({
     <div className="flex flex-col lg:flex-row gap-4">
       {/* Map panel */}
       <div className={`${selected ? "lg:w-3/5" : "w-full"} transition-all duration-300`}>
+        {alerts.length > 0 && <AlertBanner alerts={alerts} />}
         <MedanSvgMap
           kecamatanFeatures={kecamatanFeatures}
           kelurahanFeatures={kelurahanFeatures}
@@ -85,6 +100,7 @@ export default function CuacaLayout({
           selectedKelName={selectedKelName}
           onSelect={handleSelect}
           onClose={handleClose}
+          alertPaths={alertPaths}
         />
       </div>
 

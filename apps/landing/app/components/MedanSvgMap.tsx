@@ -6,6 +6,15 @@ import type { SvgFeature } from "@/lib/geo-to-svg";
 
 type WeatherItem = MapWeatherData["data"][number];
 
+interface AlertPath {
+  path: string;
+  event: string;
+  severity: string;
+  headline: string;
+  expires: string;
+  web: string;
+}
+
 interface Props {
   kecamatanFeatures: (SvgFeature & {
     centroid: [number, number];
@@ -17,6 +26,7 @@ interface Props {
   selectedKelName: string;
   onSelect: (name: string, kecamatan: string) => void;
   onClose: () => void;
+  alertPaths?: AlertPath[];
 }
 
 // Continuous HSL gradient: blue (18°C) → cyan → green → yellow → red (38°C)
@@ -27,6 +37,13 @@ function getHeatColor(temp: number | null): string {
   return `hsl(${hue}, 70%, 55%)`;
 }
 
+const SEVERITY_FILL: Record<string, string> = {
+  Extreme: "#dc2626",
+  Severe: "#f97316",
+  Moderate: "#eab308",
+  Minor: "#3b82f6",
+};
+
 export default function MedanSvgMap({
   kecamatanFeatures,
   kelurahanFeatures,
@@ -36,9 +53,11 @@ export default function MedanSvgMap({
   selectedKelName,
   onSelect,
   onClose,
+  alertPaths = [],
 }: Props) {
   const [hoveredKec, setHoveredKec] = useState<string | null>(null);
   const [hoveredKel, setHoveredKel] = useState<string | null>(null);
+  const [hoveredAlert, setHoveredAlert] = useState<AlertPath | null>(null);
 
   return (
     <div className="relative">
@@ -74,6 +93,22 @@ export default function MedanSvgMap({
               />
             );
           })}
+
+          {/* Alert polygons — overlay above kelurahan, below labels */}
+          {alertPaths.map((alert, i) => (
+            <path
+              key={`alert-${i}`}
+              d={alert.path}
+              fill={SEVERITY_FILL[alert.severity] ?? "#eab308"}
+              fillOpacity={0.25}
+              stroke={SEVERITY_FILL[alert.severity] ?? "#eab308"}
+              strokeWidth={2}
+              strokeDasharray="6 3"
+              onMouseEnter={() => setHoveredAlert(alert)}
+              onMouseLeave={() => setHoveredAlert(null)}
+              className="cursor-pointer"
+            />
+          ))}
 
           {/* Kecamatan labels */}
           {kecamatanFeatures.map((kec) => (
@@ -119,7 +154,13 @@ export default function MedanSvgMap({
       </div>
 
       {/* Hover tooltip */}
-      {hoveredKel && (
+      {hoveredAlert ? (
+        <div className="absolute bottom-4 left-4 bg-zinc-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg pointer-events-none z-10">
+          ⚠️ <strong>{hoveredAlert.event}</strong>
+          <br />
+          {hoveredAlert.headline}
+        </div>
+      ) : hoveredKel ? (
         <div className="absolute bottom-4 left-4 bg-zinc-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg pointer-events-none z-10">
           {hoveredKel}
           {hoveredKec && (
@@ -134,7 +175,7 @@ export default function MedanSvgMap({
             </span>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -39,10 +39,6 @@ interface LocationRow {
   district: string;
 }
 
-interface RawRow {
-  raw_json: unknown;
-}
-
 export async function GET() {
   try {
     // Get ADM4 codes from dim_location
@@ -52,34 +48,20 @@ export async function GET() {
       ORDER BY district
     `;
 
-    // Get kelurahan names from raw JSON data
-    const rawRows = await prisma.$queryRaw<RawRow[]>`
-      SELECT raw_json FROM raw_weather_observations
+    // Get kelurahan names directly from raw JSON — one row per distinct ADM4
+    const nameRows = await prisma.$queryRaw<{ adm4: string; desa: string }[]>`
+      SELECT DISTINCT
+        raw_json->'lokasi'->>'adm4' AS adm4,
+        raw_json->'lokasi'->>'desa' AS desa
+      FROM raw_weather_observations
       WHERE source = 'BMKG'
-      ORDER BY raw_id DESC LIMIT 200
+        AND raw_json->'lokasi'->>'adm4' IS NOT NULL
+        AND raw_json->'lokasi'->>'desa' IS NOT NULL
     `;
 
-    // Build kelurahan name map: ADM4 code → name
     const kelNameMap: Record<string, string> = {};
-    for (const row of rawRows) {
-      try {
-        const raw =
-          typeof row.raw_json === "string"
-            ? JSON.parse(row.raw_json as string)
-            : row.raw_json;
-        const data = (raw as Record<string, unknown>)?.data;
-        if (!Array.isArray(data) || !data[0]) continue;
-        const lokasi = (data[0] as Record<string, unknown>)?.lokasi;
-        if (!lokasi || typeof lokasi !== "object") continue;
-        const l = lokasi as Record<string, unknown>;
-        const adm4 = l.adm4 as string;
-        const desa = l.desa as string;
-        if (adm4 && desa && !kelNameMap[adm4]) {
-          kelNameMap[adm4] = desa;
-        }
-      } catch {
-        // skip malformed entries
-      }
+    for (const row of nameRows) {
+      kelNameMap[row.adm4] = row.desa;
     }
 
     // Group by kecamatan

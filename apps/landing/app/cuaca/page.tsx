@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getMapWeather } from "@/lib/api";
+import { getMapWeather, getAlerts } from "@/lib/api";
 import CuacaLayout from "../components/CuacaLayout";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -8,6 +8,7 @@ import {
   expandBBox,
   featureToSvg,
   featureCentroid,
+  project,
   type SvgFeature,
 } from "@/lib/geo-to-svg";
 
@@ -48,7 +49,7 @@ const SVG_W = 800;
 const SVG_H = 1000;
 
 export default async function CuacaPage() {
-  const [data, kecGeojson, kelGeojson, adm4Map] = await Promise.all([
+  const [data, kecGeojson, kelGeojson, adm4Map, alertData] = await Promise.all([
     getMapWeather(),
     Promise.resolve(
       JSON.parse(
@@ -74,6 +75,7 @@ export default async function CuacaPage() {
         )
       ) as Record<string, string>
     ),
+    getAlerts(),
   ]);
 
   const weather = data?.data ?? [];
@@ -107,6 +109,29 @@ export default async function CuacaPage() {
     featureToSvg(f, bbox, SVG_W, SVG_H)
   );
 
+  // Pre-compute SVG paths for alert polygons
+  const alertPaths = (alertData?.alerts ?? []).flatMap((alert) =>
+    alert.areas.flatMap((area) =>
+      area.polygons.map((polygon) => {
+        const svgPoints = polygon.map(([lng, lat]) =>
+          project(lng, lat, bbox, SVG_W, SVG_H)
+        );
+        const d =
+          svgPoints
+            .map((pt, i) => `${i === 0 ? "M" : "L"}${pt[0]},${pt[1]}`)
+            .join(" ") + "Z";
+        return {
+          path: d,
+          event: alert.event,
+          severity: alert.severity,
+          headline: alert.headline,
+          expires: alert.expires,
+          web: alert.web,
+        };
+      })
+    )
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6">
@@ -129,6 +154,8 @@ export default async function CuacaPage() {
         kelurahanFeatures={kelFeatures}
         weatherByName={weatherByName}
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        alerts={alertData?.alerts ?? []}
+        alertPaths={alertPaths}
       />
     </div>
   );

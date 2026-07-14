@@ -60,6 +60,11 @@ export default function ForecastPage() {
       .finally(() => setLoading(false));
   }, [selectedKel]);
 
+  // ADM4 code → kelurahan name lookup
+  const nameByAdm4 = Object.fromEntries(
+    locations.flatMap((k) => k.kelurahan.map((kel) => [kel.adm4, kel.name]))
+  );
+
   const kelurahanList =
     locations.find((k) => k.kecamatan === selectedKec)?.kelurahan ?? [];
 
@@ -147,7 +152,7 @@ export default function ForecastPage() {
               className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5"
             >
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
-                {f.district}
+                {nameByAdm4[f.district] ?? f.district}
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

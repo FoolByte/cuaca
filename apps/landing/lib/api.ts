@@ -137,6 +137,27 @@ export const getHeatmap = (hours = 24) =>
 export const getMapWeather = () =>
   fetchAPI<MapWeatherData>("/map");
 
+export interface AlertData {
+  alerts: Array<{
+    event: string;
+    headline: string;
+    description: string;
+    urgency: string;
+    severity: string;
+    certainty: string;
+    effective: string;
+    expires: string;
+    web: string;
+    areas: Array<{
+      areaDesc: string;
+      polygons: number[][][]; // [[lng, lat], ...][]
+    }>;
+  }>;
+  meta: { timestamp: string; source: string; count: number };
+}
+
+export const getAlerts = () => fetchAPI<AlertData>("/alerts");
+
 export interface LocationData {
   data: Array<{
     kecamatan: string;
