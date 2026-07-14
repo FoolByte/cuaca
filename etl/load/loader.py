@@ -287,7 +287,21 @@ def insert_fact_weather(
                      wind_speed, rainfall, uv_index, visibility,
                      cloud_coverage, temp_avg, temp_max, temp_min, source)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (time_id, location_id) DO NOTHING
+                ON CONFLICT (time_id, location_id) DO UPDATE SET
+                    weather_id = EXCLUDED.weather_id,
+                    temperature = EXCLUDED.temperature,
+                    humidity = EXCLUDED.humidity,
+                    pressure = EXCLUDED.pressure,
+                    wind_direction = EXCLUDED.wind_direction,
+                    wind_speed = EXCLUDED.wind_speed,
+                    rainfall = EXCLUDED.rainfall,
+                    uv_index = EXCLUDED.uv_index,
+                    visibility = EXCLUDED.visibility,
+                    cloud_coverage = EXCLUDED.cloud_coverage,
+                    temp_avg = EXCLUDED.temp_avg,
+                    temp_max = EXCLUDED.temp_max,
+                    temp_min = EXCLUDED.temp_min,
+                    source = EXCLUDED.source
                 """,
                 (
                     time_id,
