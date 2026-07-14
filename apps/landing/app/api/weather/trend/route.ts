@@ -64,9 +64,10 @@ export async function GET(request: NextRequest) {
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             WHERE dl.district = ${adm4}
+              AND dt.timestamp >= NOW()
           ) sub
           WHERE rn <= ${limit}
-          ORDER BY district, observed_at DESC
+          ORDER BY district, observed_at ASC
         `
       : kecamatan
         ? await prisma.$queryRaw<TrendRow[]>`
@@ -92,15 +93,16 @@ export async function GET(request: NextRequest) {
                        PARTITION BY dl.district ORDER BY dt.timestamp
                      ))::numeric, 1) AS humidity_delta,
                      ROW_NUMBER() OVER (
-                       PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                       PARTITION BY dl.district ORDER BY dt.timestamp ASC
                      ) AS rn
               FROM fact_weather fw
               JOIN dim_time dt ON fw.time_id = dt.time_id
               JOIN dim_location dl ON fw.location_id = dl.location_id
               WHERE dl.district LIKE ${kecamatan + ".%"}
+                AND dt.timestamp >= NOW()
             ) sub
             WHERE rn <= ${limit}
-            ORDER BY district, observed_at DESC
+            ORDER BY district, observed_at ASC
           `
         : await prisma.$queryRaw<TrendRow[]>`
           SELECT * FROM (
@@ -130,9 +132,10 @@ export async function GET(request: NextRequest) {
             FROM fact_weather fw
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
+            WHERE dt.timestamp >= NOW()
           ) sub
           WHERE rn <= ${limit}
-          ORDER BY district, observed_at DESC
+          ORDER BY district, observed_at ASC
         `;
 
     if (rows.length === 0) {

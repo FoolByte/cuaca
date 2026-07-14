@@ -47,16 +47,17 @@ export async function GET(request: NextRequest) {
                    dw.temp_classification, dt.timestamp AS observed_at,
                    fw.temp_avg, fw.temp_max, fw.temp_min,
                    ROW_NUMBER() OVER (
-                     PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                     PARTITION BY dl.district ORDER BY dt.timestamp ASC
                    ) AS rn
             FROM fact_weather fw
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
             WHERE dl.district = ${adm4}
+              AND dt.timestamp >= NOW()
           ) sub
           WHERE rn <= ${limit}
-          ORDER BY district, observed_at DESC
+          ORDER BY district, observed_at ASC
         `
       : kecamatan
         ? await prisma.$queryRaw<ForecastRow[]>`
@@ -69,16 +70,17 @@ export async function GET(request: NextRequest) {
                      dw.temp_classification, dt.timestamp AS observed_at,
                      fw.temp_avg, fw.temp_max, fw.temp_min,
                      ROW_NUMBER() OVER (
-                       PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                       PARTITION BY dl.district ORDER BY dt.timestamp ASC
                      ) AS rn
               FROM fact_weather fw
               JOIN dim_time dt ON fw.time_id = dt.time_id
               JOIN dim_location dl ON fw.location_id = dl.location_id
               JOIN dim_weather dw ON fw.weather_id = dw.weather_id
               WHERE dl.district LIKE ${kecamatan + ".%"}
+                AND dt.timestamp >= NOW()
             ) sub
             WHERE rn <= ${limit}
-            ORDER BY district, observed_at DESC
+            ORDER BY district, observed_at ASC
           `
         : await prisma.$queryRaw<ForecastRow[]>`
           SELECT district, temperature, humidity, rainfall, wind_speed,
@@ -90,15 +92,16 @@ export async function GET(request: NextRequest) {
                    dw.temp_classification, dt.timestamp AS observed_at,
                    fw.temp_avg, fw.temp_max, fw.temp_min,
                    ROW_NUMBER() OVER (
-                     PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                     PARTITION BY dl.district ORDER BY dt.timestamp ASC
                    ) AS rn
             FROM fact_weather fw
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+            WHERE dt.timestamp >= NOW()
           ) sub
           WHERE rn <= ${limit}
-          ORDER BY district, observed_at DESC
+          ORDER BY district, observed_at ASC
         `;
 
     if (rows.length === 0) {
