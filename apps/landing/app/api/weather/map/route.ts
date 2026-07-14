@@ -64,8 +64,13 @@ interface MapRow {
 export async function GET() {
   try {
     const rows = await prisma.$queryRaw<MapRow[]>`
-      SELECT DISTINCT ON (dl.district)
-        dl.district, dl.latitude, dl.longitude,
+      WITH latest AS (
+        SELECT MAX(dt.timestamp) AS ts
+        FROM fact_weather fw
+        JOIN dim_time dt ON fw.time_id = dt.time_id
+        WHERE dt.timestamp <= NOW()
+      )
+      SELECT dl.district, dl.latitude, dl.longitude,
         fw.temperature, fw.humidity, fw.pressure,
         fw.wind_direction, fw.wind_speed, fw.rainfall,
         fw.visibility, fw.cloud_coverage,
@@ -77,9 +82,9 @@ export async function GET() {
       JOIN dim_time dt ON fw.time_id = dt.time_id
       JOIN dim_location dl ON fw.location_id = dl.location_id
       JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+      CROSS JOIN latest
       WHERE dl.district ~ '^12\\.71\\.\\d{2}\\.\\d{4}$'
-        AND dt.timestamp <= NOW()
-      ORDER BY dl.district, dt.timestamp DESC
+        AND dt.timestamp = latest.ts
     `;
 
     if (rows.length === 0) {
