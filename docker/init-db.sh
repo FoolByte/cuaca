@@ -15,7 +15,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     DO \$\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'metabase_ro') THEN
-            CREATE ROLE metabase_ro WITH LOGIN PASSWORD 'metabase_ro_pass';
+            CREATE ROLE metabase_ro WITH LOGIN PASSWORD '${METABASE_RO_PASSWORD:-metabase_ro_pass}';
         END IF;
     END
     \$\$;
