@@ -130,34 +130,6 @@ export default async function CuacaPage() {
         weatherByName={weatherByName}
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
       />
-
-      {/* Legend — temperature gradient + border info */}
-      <div className="mt-4 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
-          Suhu (°C)
-        </h3>
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs text-zinc-500">18°C</span>
-          <div
-            className="h-3 flex-1 rounded-full"
-            style={{
-              background:
-                "linear-gradient(to right, hsl(240,70%,55%), hsl(180,70%,55%), hsl(120,70%,55%), hsl(60,70%,55%), hsl(0,70%,55%))",
-            }}
-          />
-          <span className="text-xs text-zinc-500">38°C</span>
-        </div>
-        <div className="flex flex-wrap gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-          <span className="flex items-center gap-1.5">
-            <span className="w-5 h-0.5 bg-zinc-800 dark:bg-zinc-200 inline-block" />
-            Kecamatan (garis tebal)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-5 h-0 border-t border-dashed border-zinc-500 inline-block" />
-            Kelurahan (garis putus-putus)
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
