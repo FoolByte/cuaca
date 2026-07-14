@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
             JOIN fact_weather fw ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             WHERE dl.district = ${district}
+            GROUP BY dt.timestamp
             ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
             LIMIT 1
           )
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
             SELECT dt.timestamp AS ts
             FROM dim_time dt
             JOIN fact_weather fw ON fw.time_id = dt.time_id
+            GROUP BY dt.timestamp
             ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
             LIMIT 1
           )

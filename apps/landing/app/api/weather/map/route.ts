@@ -69,8 +69,7 @@ export async function GET() {
         SELECT dt.timestamp AS ts
         FROM dim_time dt
         JOIN fact_weather fw ON fw.time_id = dt.time_id
-        JOIN dim_location dl ON fw.location_id = dl.location_id
-        WHERE dl.district ~ '^12\\.71\\.\\d{2}\\.\\d{4}$'
+        GROUP BY dt.timestamp
         ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
         LIMIT 1
       )
