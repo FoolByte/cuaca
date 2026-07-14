@@ -13,17 +13,25 @@ export async function GET(request: NextRequest) {
   try {
     const district = request.nextUrl.searchParams.get("district");
 
-    // Find closest available timestamp to now
+    // Find closest timestamp with most kelurahan data
     const rows = district
       ? await prisma.$queryRaw<CurrentRow[]>`
-          WITH closest AS (
-            SELECT dt.timestamp AS ts
+          WITH ranked AS (
+            SELECT dt.timestamp AS ts,
+                   COUNT(DISTINCT dl.district) AS cnt,
+                   ROW_NUMBER() OVER (
+                     ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW()))) ASC
+                   ) AS rn
             FROM dim_time dt
             JOIN fact_weather fw ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
-            WHERE dl.district = ${district}
+            WHERE dl.district ~ '^12\\.71\\.\\d{2}\\.\\d{4}$'
             GROUP BY dt.timestamp
-            ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
+          ),
+          closest AS (
+            SELECT ts FROM ranked
+            WHERE cnt >= 100
+            ORDER BY rn
             LIMIT 1
           )
           SELECT dl.district, dl.latitude, dl.longitude,
@@ -33,7 +41,7 @@ export async function GET(request: NextRequest) {
             dw.temp_classification, dw.humidity_classification,
             dw.wind_classification, dw.rain_classification,
             dw.condition_desc,
-            dt.timestamp AS observed_at, fw.source
+            dt.timestamp::text AS observed_at, fw.source
           FROM fact_weather fw
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
@@ -43,12 +51,22 @@ export async function GET(request: NextRequest) {
             AND dt.timestamp = closest.ts
         `
       : await prisma.$queryRaw<CurrentRow[]>`
-          WITH closest AS (
-            SELECT dt.timestamp AS ts
+          WITH ranked AS (
+            SELECT dt.timestamp AS ts,
+                   COUNT(DISTINCT dl.district) AS cnt,
+                   ROW_NUMBER() OVER (
+                     ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW()))) ASC
+                   ) AS rn
             FROM dim_time dt
             JOIN fact_weather fw ON fw.time_id = dt.time_id
+            JOIN dim_location dl ON fw.location_id = dl.location_id
+            WHERE dl.district ~ '^12\\.71\\.\\d{2}\\.\\d{4}$'
             GROUP BY dt.timestamp
-            ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
+          ),
+          closest AS (
+            SELECT ts FROM ranked
+            WHERE cnt >= 100
+            ORDER BY rn
             LIMIT 1
           )
           SELECT dl.district, dl.latitude, dl.longitude,
@@ -58,7 +76,7 @@ export async function GET(request: NextRequest) {
             dw.temp_classification, dw.humidity_classification,
             dw.wind_classification, dw.rain_classification,
             dw.condition_desc,
-            dt.timestamp AS observed_at, fw.source
+            dt.timestamp::text AS observed_at, fw.source
           FROM fact_weather fw
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
