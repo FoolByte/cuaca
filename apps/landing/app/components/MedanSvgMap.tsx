@@ -119,7 +119,7 @@ export default function MedanSvgMap({
       </div>
 
       {/* Hover tooltip */}
-      {hoveredKel && !selected && (
+      {hoveredKel && (
         <div className="absolute bottom-4 left-4 bg-zinc-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg pointer-events-none z-10">
           {hoveredKel}
           {hoveredKec && (
