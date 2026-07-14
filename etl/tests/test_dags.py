@@ -65,11 +65,10 @@ class TestDAGStructure:
         source = DAG_FILE.read_text()
         assert '"retry_delay"' in source
 
-    def test_dag_reads_interval_from_variable(self):
-        """Interval is read from Airflow Variable, not hardcoded."""
+    def test_dag_uses_bmk_cycle_cron(self):
+        """Schedule uses BMKG cycle cron constant."""
         source = DAG_FILE.read_text()
-        assert "Variable.get" in source
-        assert "weather_etl_interval_minutes" in source
+        assert "BMKG_CYCLE_CRON" in source
 
     def test_dag_uses_airflow_connection(self):
         """DWH credentials come from Airflow Connection, not hardcoded."""
@@ -84,9 +83,9 @@ class TestDAGStructure:
         assert "weather_pass" not in source
 
     def test_dag_schedule_interval_not_hardcoded(self):
-        """Schedule interval uses function call, not a constant."""
+        """Schedule interval uses a named constant, not a hardcoded string."""
         source = DAG_FILE.read_text()
-        assert "schedule_interval=timedelta(minutes=_get_interval_minutes())" in source
+        assert "schedule_interval=BMKG_CYCLE_CRON" in source
 
     def test_dag_catchup_disabled(self):
         """catchup=False to prevent backfilling old data."""

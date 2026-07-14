@@ -1,7 +1,10 @@
 """Airflow DAG: Weather ETL Pipeline for Kota Medan.
 
-Schedule interval is configurable via Airflow Variable `weather_etl_interval_minutes`
-(default: 10). Change it in the Airflow UI without redeploying.
+Schedule: runs every 3 hours synced with BMKG forecast cycles.
+Cron: 30 1,4,7,10,13,16,19,22 * * * (UTC)
+  = 02:30, 05:30, 08:30, 11:30, 14:30, 17:30, 20:30, 23:30 WIB
+
+The 30-minute buffer ensures BMKG has finished updating before we extract.
 
 The DAG runs: extract >> transform >> load
 Each task has retries with exponential backoff.
@@ -16,21 +19,14 @@ import sys
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
 logger = logging.getLogger(__name__)
 
-# ── Helpers ─────────────────────────────────────────────────────────
-
-
-def _get_interval_minutes() -> int:
-    """Read schedule interval from Airflow Variable, default 10."""
-    try:
-        return int(Variable.get("weather_etl_interval_minutes", default_var="10"))
-    except (ValueError, TypeError):
-        return 10
+# BMKG forecast cycle cron (UTC) — every 3h with 30min buffer
+# 02:30, 05:30, 08:30, 11:30, 14:30, 17:30, 20:30, 23:30 WIB
+BMKG_CYCLE_CRON = "30 1,4,7,10,13,16,19,22 * * *"
 
 
 def _get_dsn() -> str:
@@ -155,7 +151,7 @@ with DAG(
     dag_id="weather_etl",
     default_args=default_args,
     description="Weather ETL pipeline for Kota Medan (extract → transform → load)",
-    schedule_interval=timedelta(minutes=_get_interval_minutes()),
+    schedule_interval=BMKG_CYCLE_CRON,
     start_date=days_ago(1),
     catchup=False,
     tags=["weather", "etl", "medan"],
