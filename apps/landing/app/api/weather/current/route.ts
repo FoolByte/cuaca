@@ -13,23 +13,17 @@ export async function GET(request: NextRequest) {
   try {
     const district = request.nextUrl.searchParams.get("district");
 
-    // Round to next 3-hour BMKG slot
-    const now = new Date();
-    const h = now.getUTCHours();
-    const nextSlot = new Date(now);
-    nextSlot.setUTCMinutes(0, 0, 0);
-    if (h % 3 === 0 && now.getUTCMinutes() === 0) {
-      // exactly on a slot — use it
-    } else {
-      nextSlot.setUTCHours(Math.ceil(h / 3) * 3, 0, 0, 0);
-    }
-
+    // Find closest available timestamp to now
     const rows = district
       ? await prisma.$queryRaw<CurrentRow[]>`
-          WITH target AS (
-            SELECT MIN(dt.timestamp) AS ts
+          WITH closest AS (
+            SELECT dt.timestamp AS ts
             FROM dim_time dt
-            WHERE dt.timestamp >= ${nextSlot.toISOString()}::timestamp
+            JOIN fact_weather fw ON fw.time_id = dt.time_id
+            JOIN dim_location dl ON fw.location_id = dl.location_id
+            WHERE dl.district = ${district}
+            ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
+            LIMIT 1
           )
           SELECT dl.district, dl.latitude, dl.longitude,
             fw.temperature, fw.humidity, fw.pressure,
@@ -43,15 +37,17 @@ export async function GET(request: NextRequest) {
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-          CROSS JOIN target
+          CROSS JOIN closest
           WHERE dl.district = ${district}
-            AND dt.timestamp = target.ts
+            AND dt.timestamp = closest.ts
         `
       : await prisma.$queryRaw<CurrentRow[]>`
-          WITH target AS (
-            SELECT MIN(dt.timestamp) AS ts
+          WITH closest AS (
+            SELECT dt.timestamp AS ts
             FROM dim_time dt
-            WHERE dt.timestamp >= ${nextSlot.toISOString()}::timestamp
+            JOIN fact_weather fw ON fw.time_id = dt.time_id
+            ORDER BY ABS(EXTRACT(EPOCH FROM (dt.timestamp - NOW())))
+            LIMIT 1
           )
           SELECT dl.district, dl.latitude, dl.longitude,
             fw.temperature, fw.humidity, fw.pressure,
@@ -65,8 +61,8 @@ export async function GET(request: NextRequest) {
           JOIN dim_time dt ON fw.time_id = dt.time_id
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-          CROSS JOIN target
-          WHERE dt.timestamp = target.ts
+          CROSS JOIN closest
+          WHERE dt.timestamp = closest.ts
         `;
 
     if (rows.length === 0) {
