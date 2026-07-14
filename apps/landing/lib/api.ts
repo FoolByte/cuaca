@@ -3,7 +3,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 async function fetchAPI<T>(endpoint: string): Promise<T | null> {
   try {
     const res = await fetch(`${BASE_URL}/api/weather${endpoint}`, {
-      next: { revalidate: 600 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     return res.json();
@@ -79,6 +79,34 @@ export interface TrendData {
   meta: { total_points: number; limit: number; timestamp: string };
 }
 
+export interface MapWeatherData {
+  data: Array<{
+    district: string;
+    kecamatan: string;
+    location: { latitude: number | null; longitude: number | null };
+    weather: {
+      temperature: number | null;
+      humidity: number | null;
+      pressure: number | null;
+      wind_direction: string | null;
+      wind_speed: number | null;
+      rainfall: number | null;
+      visibility: number | null;
+      cloud_coverage: number | null;
+    };
+    classification: {
+      temperature: string | null;
+      humidity: string | null;
+      wind: string | null;
+      rainfall: string | null;
+      condition: string | null;
+    };
+    observed_at: string;
+    source: string | null;
+  }>;
+  meta: { count: number; timestamp: string };
+}
+
 export interface HeatmapData {
   data: Array<{
     district: string;
@@ -105,3 +133,17 @@ export const getTrend = (limit = 24) =>
 
 export const getHeatmap = (hours = 24) =>
   fetchAPI<HeatmapData>(`/heatmap?hours=${hours}`);
+
+export const getMapWeather = () =>
+  fetchAPI<MapWeatherData>("/map");
+
+export interface LocationData {
+  data: Array<{
+    kecamatan: string;
+    kelurahan: Array<{ adm4: string; name: string }>;
+  }>;
+  meta: { total_kecamatan: number; total_kelurahan: number; timestamp: string };
+}
+
+export const getLocations = () =>
+  fetchAPI<LocationData>("/locations");

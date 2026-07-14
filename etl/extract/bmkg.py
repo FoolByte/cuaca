@@ -5,7 +5,7 @@ Returns forecast data in 3-hour intervals; we pick the nearest/first entry.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone, timedelta
 
 import requests
 
@@ -36,7 +36,7 @@ class BMKGProvider(WeatherProvider):
             ConnectionError: If the API is unreachable after retries.
             ValueError: If the API returns unexpected data.
         """
-        raw = retry_with_backoff(self._request, adm4_code)
+        raw = retry_with_backoff(self._request, adm4_code, max_retries=5)
         normalized = self._parse_response(raw, adm4_code)
         return raw, normalized
 
@@ -89,16 +89,23 @@ class BMKGProvider(WeatherProvider):
         # Parse observed_at from local_datetime (format: "2026-07-11 10:00:00")
         local_dt_str = entry.get("local_datetime", "")
         utc_dt_str = entry.get("datetime", "")
-        if local_dt_str:
-            observed_at = datetime.strptime(
-                local_dt_str, "%Y-%m-%d %H:%M:%S"
-            ).replace(tzinfo=UTC)
-        elif utc_dt_str:
+        if utc_dt_str:
+            # Prefer UTC datetime field
             observed_at = datetime.fromisoformat(
                 utc_dt_str.replace("Z", "+00:00")
             )
+        elif local_dt_str:
+            # local_datetime is WIB (UTC+7), convert to UTC
+            WIB = timezone(timedelta(hours=7))
+            observed_at = datetime.strptime(
+                local_dt_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=WIB).astimezone(UTC)
         else:
             observed_at = datetime.now(UTC)
+
+        # Strip tzinfo before returning — PostgreSQL TIMESTAMPTZ stores
+        # the instant; naive datetime avoids double-conversion issues.
+        observed_at = observed_at.replace(tzinfo=None)
 
         return NormalizedWeatherData(
             observed_at=observed_at,

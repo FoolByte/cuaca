@@ -26,14 +26,15 @@ interface TrendRow {
  */
 export async function GET(request: NextRequest) {
   try {
-    const district = request.nextUrl.searchParams.get("district");
+    const adm4 = request.nextUrl.searchParams.get("adm4");
+    const kecamatan = request.nextUrl.searchParams.get("kecamatan");
     const limitParam = request.nextUrl.searchParams.get("limit");
     const limit = Math.min(
       Math.max(parseInt(limitParam ?? "24", 10) || 24, 1),
       96
     );
 
-    const rows = district
+    const rows = adm4
       ? await prisma.$queryRaw<TrendRow[]>`
           SELECT * FROM (
             SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
@@ -62,12 +63,46 @@ export async function GET(request: NextRequest) {
             FROM fact_weather fw
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
-            WHERE dl.district = ${district}
+            WHERE dl.district = ${adm4}
           ) sub
           WHERE rn <= ${limit}
           ORDER BY district, observed_at DESC
         `
-      : await prisma.$queryRaw<TrendRow[]>`
+      : kecamatan
+        ? await prisma.$queryRaw<TrendRow[]>`
+            SELECT * FROM (
+              SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
+                     dt.timestamp AS observed_at,
+                     ROUND(AVG(fw.temperature) OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp
+                       ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+                     )::numeric, 1) AS temp_ma,
+                     ROUND(AVG(fw.humidity) OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp
+                       ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+                     )::numeric, 1) AS humidity_ma,
+                     ROUND(AVG(fw.rainfall) OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp
+                       ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+                     )::numeric, 2) AS rainfall_ma,
+                     ROUND((fw.temperature - LAG(fw.temperature) OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp
+                     ))::numeric, 1) AS temp_delta,
+                     ROUND((fw.humidity - LAG(fw.humidity) OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp
+                     ))::numeric, 1) AS humidity_delta,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                     ) AS rn
+              FROM fact_weather fw
+              JOIN dim_time dt ON fw.time_id = dt.time_id
+              JOIN dim_location dl ON fw.location_id = dl.location_id
+              WHERE dl.district LIKE ${kecamatan + ".%"}
+            ) sub
+            WHERE rn <= ${limit}
+            ORDER BY district, observed_at DESC
+          `
+        : await prisma.$queryRaw<TrendRow[]>`
           SELECT * FROM (
             SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
                    dt.timestamp AS observed_at,

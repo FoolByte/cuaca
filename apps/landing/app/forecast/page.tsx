@@ -1,17 +1,67 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { Metadata } from "next";
-import { getForecast } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
+interface Kelurahan {
+  adm4: string;
+  name: string;
+}
 
-export const metadata: Metadata = {
-  title: "Forecast",
-  description:
-    "Prediksi cuaca Kota Medan berdasarkan data historis dan tren terkini.",
-};
+interface Kecamatan {
+  kecamatan: string;
+  kelurahan: Kelurahan[];
+}
 
-export default async function ForecastPage() {
-  const data = await getForecast(12);
-  const forecasts = data?.data ?? [];
+interface ForecastObs {
+  temperature: number | null;
+  humidity: number | null;
+  rainfall: number | null;
+  wind_speed: number | null;
+  condition: string | null;
+  temp_classification: string | null;
+  aggregates: {
+    temp_avg: number | null;
+    temp_max: number | null;
+    temp_min: number | null;
+  };
+  observed_at: string;
+}
+
+interface ForecastDistrict {
+  district: string;
+  observations: ForecastObs[];
+}
+
+export default function ForecastPage() {
+  const [locations, setLocations] = useState<Kecamatan[]>([]);
+  const [selectedKec, setSelectedKec] = useState("");
+  const [selectedKel, setSelectedKel] = useState("");
+  const [forecast, setForecast] = useState<ForecastDistrict[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch locations on mount
+  useEffect(() => {
+    fetch("/api/weather/locations")
+      .then((r) => r.json())
+      .then((d) => setLocations(d?.data ?? []));
+  }, []);
+
+  // Fetch forecast when selection changes
+  useEffect(() => {
+    if (!selectedKel) {
+      setForecast([]);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/weather/forecast?adm4=${selectedKel}&limit=12`)
+      .then((r) => r.json())
+      .then((d) => setForecast(d?.data ?? []))
+      .finally(() => setLoading(false));
+  }, [selectedKel]);
+
+  const kelurahanList =
+    locations.find((k) => k.kecamatan === selectedKec)?.kelurahan ?? [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -20,13 +70,78 @@ export default async function ForecastPage() {
           Forecast Cuaca
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 mt-2">
-          Prediksi cuaca berdasarkan data observasi terkini per kecamatan.
+          Prediksi cuaca berdasarkan data observasi terkini per kelurahan.
         </p>
       </div>
 
-      {forecasts.length > 0 ? (
+      {/* Filter dropdowns */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            Kecamatan
+          </label>
+          <select
+            value={selectedKec}
+            onChange={(e) => {
+              setSelectedKec(e.target.value);
+              setSelectedKel("");
+            }}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">— Pilih Kecamatan —</option>
+            {locations.map((k) => (
+              <option key={k.kecamatan} value={k.kecamatan}>
+                {k.kecamatan}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            Kelurahan
+          </label>
+          <select
+            value={selectedKel}
+            onChange={(e) => setSelectedKel(e.target.value)}
+            disabled={!selectedKec}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+          >
+            <option value="">
+              {selectedKec ? "— Pilih Kelurahan —" : "Pilih kecamatan dulu"}
+            </option>
+            {kelurahanList.map((kel) => (
+              <option key={kel.adm4} value={kel.adm4}>
+                {kel.name} ({kel.adm4})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Results */}
+      {!selectedKel && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">
+            Pilih kecamatan dan kelurahan untuk melihat data forecast.
+          </p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">Memuat data...</p>
+        </div>
+      )}
+
+      {!loading && selectedKel && forecast.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">Belum ada data forecast.</p>
+        </div>
+      )}
+
+      {!loading && forecast.length > 0 && (
         <div className="space-y-6">
-          {forecasts.map((f) => (
+          {forecast.map((f) => (
             <div
               key={f.district}
               className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5"
@@ -100,10 +215,6 @@ export default async function ForecastPage() {
               </div>
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="text-center py-16">
-          <p className="text-zinc-500">Belum ada data forecast.</p>
         </div>
       )}
     </div>

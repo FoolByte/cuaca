@@ -137,7 +137,9 @@ def upsert_dim_time(cur: Any, timestamps: list[datetime]) -> dict[datetime, int]
 
 
 def upsert_dim_location(
-    cur: Any, locations: list[str]
+    cur: Any,
+    locations: list[str],
+    coord_map: dict[str, tuple[float | None, float | None]] | None = None,
 ) -> dict[str, int]:
     """Upsert dim_location rows (city='Medan') and return {district: location_id}."""
     mapping: dict[str, int] = {}
@@ -145,14 +147,17 @@ def upsert_dim_location(
         return mapping
 
     for district in locations:
+        lat, lon = (coord_map or {}).get(district, (None, None))
         cur.execute(
             """
-            INSERT INTO dim_location (city, district, region_level)
-            VALUES ('Medan', %s, 'kecamatan')
-            ON CONFLICT (city, district) DO NOTHING
+            INSERT INTO dim_location (city, district, latitude, longitude, region_level)
+            VALUES ('Medan', %s, %s, %s, 'kecamatan')
+            ON CONFLICT (city, district) DO UPDATE
+            SET latitude = COALESCE(EXCLUDED.latitude, dim_location.latitude),
+                longitude = COALESCE(EXCLUDED.longitude, dim_location.longitude)
             RETURNING location_id
             """,
-            (district,),
+            (district, lat, lon),
         )
         row = cur.fetchone()
         if row:
@@ -357,6 +362,8 @@ def load(
     try:
         conn.autocommit = False
         cur = conn.cursor()
+        # Ensure UTC session timezone so TIMESTAMP WITHOUT TIME ZONE stores UTC
+        cur.execute("SET timezone = 'UTC'")
 
         # 1. Ensure watermark table exists
         ensure_watermark_table(cur)
@@ -364,6 +371,10 @@ def load(
         # 2. Check watermark — filter to new data only
         watermark = get_watermark(cur)
         if watermark is not None:
+            from datetime import timezone
+
+            if watermark.tzinfo is None:
+                watermark = watermark.replace(tzinfo=timezone.utc)
             before = len(df)
             df = df[df["observed_at"] > watermark]
             logger.info(
@@ -381,8 +392,14 @@ def load(
         timestamps = df["observed_at"].unique().tolist()
         locations = df["location"].unique().tolist()
 
+        # Build coord_map: {location: (lat, lon)} if columns exist
+        coord_map: dict[str, tuple[float | None, float | None]] = {}
+        if "latitude" in df.columns and "longitude" in df.columns:
+            for _, r in df[["location", "latitude", "longitude"]].drop_duplicates("location").iterrows():
+                coord_map[r["location"]] = (r["latitude"], r["longitude"])
+
         time_map = upsert_dim_time(cur, timestamps)
-        location_map = upsert_dim_location(cur, locations)
+        location_map = upsert_dim_location(cur, locations, coord_map)
         weather_map = upsert_dim_weather(cur, df)
 
         # 4. Insert fact rows

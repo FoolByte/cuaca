@@ -28,14 +28,15 @@ interface ForecastRow {
  */
 export async function GET(request: NextRequest) {
   try {
-    const district = request.nextUrl.searchParams.get("district");
+    const adm4 = request.nextUrl.searchParams.get("adm4");
+    const kecamatan = request.nextUrl.searchParams.get("kecamatan");
     const limitParam = request.nextUrl.searchParams.get("limit");
     const limit = Math.min(
       Math.max(parseInt(limitParam ?? "12", 10) || 12, 1),
       48
     );
 
-    const rows = district
+    const rows = adm4
       ? await prisma.$queryRaw<ForecastRow[]>`
           SELECT district, temperature, humidity, rainfall, wind_speed,
                  cloud_coverage, condition_desc, temp_classification,
@@ -52,12 +53,34 @@ export async function GET(request: NextRequest) {
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-            WHERE dl.district = ${district}
+            WHERE dl.district = ${adm4}
           ) sub
           WHERE rn <= ${limit}
           ORDER BY district, observed_at DESC
         `
-      : await prisma.$queryRaw<ForecastRow[]>`
+      : kecamatan
+        ? await prisma.$queryRaw<ForecastRow[]>`
+            SELECT district, temperature, humidity, rainfall, wind_speed,
+                   cloud_coverage, condition_desc, temp_classification,
+                   observed_at, temp_avg, temp_max, temp_min
+            FROM (
+              SELECT dl.district, fw.temperature, fw.humidity, fw.rainfall,
+                     fw.wind_speed, fw.cloud_coverage, dw.condition_desc,
+                     dw.temp_classification, dt.timestamp AS observed_at,
+                     fw.temp_avg, fw.temp_max, fw.temp_min,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY dl.district ORDER BY dt.timestamp DESC
+                     ) AS rn
+              FROM fact_weather fw
+              JOIN dim_time dt ON fw.time_id = dt.time_id
+              JOIN dim_location dl ON fw.location_id = dl.location_id
+              JOIN dim_weather dw ON fw.weather_id = dw.weather_id
+              WHERE dl.district LIKE ${kecamatan + ".%"}
+            ) sub
+            WHERE rn <= ${limit}
+            ORDER BY district, observed_at DESC
+          `
+        : await prisma.$queryRaw<ForecastRow[]>`
           SELECT district, temperature, humidity, rainfall, wind_speed,
                  cloud_coverage, condition_desc, temp_classification,
                  observed_at, temp_avg, temp_max, temp_min

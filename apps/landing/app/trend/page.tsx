@@ -1,17 +1,62 @@
-import type { Metadata } from "next";
-import { getTrend } from "@/lib/api";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
 
-export const metadata: Metadata = {
-  title: "Trend Cuaca",
-  description:
-    "Analisis tren suhu, kelembaban, dan curah hujan Kota Medan.",
-};
+interface Kelurahan {
+  adm4: string;
+  name: string;
+}
 
-export default async function TrendPage() {
-  const data = await getTrend(24);
-  const trends = data?.data ?? [];
+interface Kecamatan {
+  kecamatan: string;
+  kelurahan: Kelurahan[];
+}
+
+interface TrendPoint {
+  temperature: number | null;
+  humidity: number | null;
+  rainfall: number | null;
+  moving_averages: {
+    temperature: number | null;
+    humidity: number | null;
+    rainfall: number | null;
+  };
+  deltas: { temperature: number | null; humidity: number | null };
+  observed_at: string;
+}
+
+interface TrendDistrict {
+  district: string;
+  trend: TrendPoint[];
+}
+
+export default function TrendPage() {
+  const [locations, setLocations] = useState<Kecamatan[]>([]);
+  const [selectedKec, setSelectedKec] = useState("");
+  const [selectedKel, setSelectedKel] = useState("");
+  const [trends, setTrends] = useState<TrendDistrict[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/weather/locations")
+      .then((r) => r.json())
+      .then((d) => setLocations(d?.data ?? []));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedKel) {
+      setTrends([]);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/weather/trend?adm4=${selectedKel}&limit=24`)
+      .then((r) => r.json())
+      .then((d) => setTrends(d?.data ?? []))
+      .finally(() => setLoading(false));
+  }, [selectedKel]);
+
+  const kelurahanList =
+    locations.find((k) => k.kecamatan === selectedKec)?.kelurahan ?? [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -20,11 +65,75 @@ export default async function TrendPage() {
           Trend Cuaca
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 mt-2">
-          Moving average (3 jam) dan perubahan antar periode per kecamatan.
+          Moving average (3 jam) dan perubahan antar periode per kelurahan.
         </p>
       </div>
 
-      {trends.length > 0 ? (
+      {/* Filter dropdowns */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            Kecamatan
+          </label>
+          <select
+            value={selectedKec}
+            onChange={(e) => {
+              setSelectedKec(e.target.value);
+              setSelectedKel("");
+            }}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">— Pilih Kecamatan —</option>
+            {locations.map((k) => (
+              <option key={k.kecamatan} value={k.kecamatan}>
+                {k.kecamatan}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            Kelurahan
+          </label>
+          <select
+            value={selectedKel}
+            onChange={(e) => setSelectedKel(e.target.value)}
+            disabled={!selectedKec}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+          >
+            <option value="">
+              {selectedKec ? "— Pilih Kelurahan —" : "Pilih kecamatan dulu"}
+            </option>
+            {kelurahanList.map((kel) => (
+              <option key={kel.adm4} value={kel.adm4}>
+                {kel.name} ({kel.adm4})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {!selectedKel && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">
+            Pilih kecamatan dan kelurahan untuk melihat data trend.
+          </p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">Memuat data...</p>
+        </div>
+      )}
+
+      {!loading && selectedKel && trends.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-zinc-500">Belum ada data trend.</p>
+        </div>
+      )}
+
+      {!loading && trends.length > 0 && (
         <div className="space-y-6">
           {trends.map((t) => (
             <div
@@ -126,10 +235,6 @@ export default async function TrendPage() {
               </div>
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="text-center py-16">
-          <p className="text-zinc-500">Belum ada data trend.</p>
         </div>
       )}
     </div>
