@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
           JOIN dim_location dl ON fw.location_id = dl.location_id
           JOIN dim_weather dw ON fw.weather_id = dw.weather_id
           WHERE dl.district = ${adm4}
-            AND dt.timestamp >= NOW()
-          ORDER BY observed_at ASC
+          ORDER BY observed_at DESC
+          LIMIT ${limit}
         `
       : kecamatan
         ? await prisma.$queryRaw<ForecastRow[]>`
@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
             WHERE dl.district LIKE ${kecamatan + ".%"}
-              AND dt.timestamp >= NOW()
-            ORDER BY observed_at ASC
+            ORDER BY observed_at DESC
+            LIMIT ${limit}
           `
         : await prisma.$queryRaw<ForecastRow[]>`
             SELECT district, temperature, humidity, rainfall, wind_speed,
@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
             JOIN dim_time dt ON fw.time_id = dt.time_id
             JOIN dim_location dl ON fw.location_id = dl.location_id
             JOIN dim_weather dw ON fw.weather_id = dw.weather_id
-            WHERE dt.timestamp >= NOW()
-            ORDER BY district, observed_at ASC
+            ORDER BY district, observed_at DESC
+            LIMIT ${limit}
           `;
 
     if (rows.length === 0) {
