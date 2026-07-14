@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Metadata } from "next";
+import ForecastCard from "../components/ForecastCard";
 
 interface Kelurahan {
   adm4: string;
@@ -19,6 +19,7 @@ interface ForecastObs {
   rainfall: number | null;
   wind_speed: number | null;
   condition: string | null;
+  condition_code: number;
   temp_classification: string | null;
   aggregates: {
     temp_avg: number | null;
@@ -33,37 +34,73 @@ interface ForecastDistrict {
   observations: ForecastObs[];
 }
 
+/** BMKG weather condition code from condition_desc */
+const CONDITION_CODES: Record<string, number> = {
+  "Cerah": 0,
+  "Cerah Berawan": 2,
+  "Berawan": 3,
+  "Berawan Tebal": 4,
+  "Udara Kabur": 10,
+  "Kabut": 45,
+  "Hujan Ringan": 61,
+  "Hujan Sedang": 63,
+  "Hujan Lebat": 65,
+  "Hujan Lokal": 80,
+  "Hujan Petir": 95,
+};
+
+function getConditionCode(desc: string | null): number {
+  if (!desc) return 3;
+  return CONDITION_CODES[desc] ?? 3;
+}
+
+function isDaytime(isoStr: string): boolean {
+  const h = new Date(isoStr).getHours();
+  return h >= 6 && h < 18;
+}
+
+function groupByDay(
+  obs: ForecastObs[]
+): Map<string, ForecastObs[]> {
+  const map = new Map<string, ForecastObs[]>();
+  for (const o of obs) {
+    const d = new Date(o.observed_at);
+    const key = d.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(o);
+  }
+  return map;
+}
+
 export default function ForecastPage() {
   const [locations, setLocations] = useState<Kecamatan[]>([]);
   const [selectedKec, setSelectedKec] = useState("");
   const [selectedKel, setSelectedKel] = useState("");
+  const [selectedKelName, setSelectedKelName] = useState("");
   const [forecast, setForecast] = useState<ForecastDistrict[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch locations on mount
   useEffect(() => {
     fetch("/api/weather/locations")
       .then((r) => r.json())
       .then((d) => setLocations(d?.data ?? []));
   }, []);
 
-  // Fetch forecast when selection changes
   useEffect(() => {
     if (!selectedKel) {
       setForecast([]);
       return;
     }
     setLoading(true);
-    fetch(`/api/weather/forecast?adm4=${selectedKel}&limit=12`)
+    fetch(`/api/weather/forecast?adm4=${selectedKel}&limit=24`)
       .then((r) => r.json())
       .then((d) => setForecast(d?.data ?? []))
       .finally(() => setLoading(false));
   }, [selectedKel]);
-
-  // ADM4 code → kelurahan name lookup
-  const nameByAdm4 = Object.fromEntries(
-    locations.flatMap((k) => k.kelurahan.map((kel) => [kel.adm4, kel.name]))
-  );
 
   const kelurahanList =
     locations.find((k) => k.kecamatan === selectedKec)?.kelurahan ?? [];
@@ -75,7 +112,7 @@ export default function ForecastPage() {
           Forecast Cuaca
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 mt-2">
-          Prediksi cuaca berdasarkan data observasi terkini per kelurahan.
+          Prediksi cuaca 3 hari ke depan per kelurahan.
         </p>
       </div>
 
@@ -90,6 +127,7 @@ export default function ForecastPage() {
             onChange={(e) => {
               setSelectedKec(e.target.value);
               setSelectedKel("");
+              setSelectedKelName("");
             }}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -107,7 +145,11 @@ export default function ForecastPage() {
           </label>
           <select
             value={selectedKel}
-            onChange={(e) => setSelectedKel(e.target.value)}
+            onChange={(e) => {
+              setSelectedKel(e.target.value);
+              const kel = kelurahanList.find((k) => k.adm4 === e.target.value);
+              setSelectedKelName(kel?.name ?? "");
+            }}
             disabled={!selectedKec}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
           >
@@ -116,7 +158,7 @@ export default function ForecastPage() {
             </option>
             {kelurahanList.map((kel) => (
               <option key={kel.adm4} value={kel.adm4}>
-                {kel.name} ({kel.adm4})
+                {kel.name}
               </option>
             ))}
           </select>
@@ -145,81 +187,51 @@ export default function ForecastPage() {
       )}
 
       {!loading && forecast.length > 0 && (
-        <div className="space-y-6">
-          {forecast.map((f) => (
-            <div
-              key={f.district}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5"
-            >
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
-                {nameByAdm4[f.district] ?? f.district}
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                      <th className="text-left py-2 px-3 text-zinc-500 font-medium">
-                        Waktu
-                      </th>
-                      <th className="text-right py-2 px-3 text-zinc-500 font-medium">
-                        Suhu
-                      </th>
-                      <th className="text-right py-2 px-3 text-zinc-500 font-medium">
-                        Kelembaban
-                      </th>
-                      <th className="text-right py-2 px-3 text-zinc-500 font-medium">
-                        Hujan
-                      </th>
-                      <th className="text-left py-2 px-3 text-zinc-500 font-medium">
-                        Kondisi
-                      </th>
-                      <th className="text-left py-2 px-3 text-zinc-500 font-medium">
-                        Klasifikasi
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {f.observations.map((obs, i) => (
-                      <tr
-                        key={i}
-                        className="border-b border-zinc-100 dark:border-zinc-800 last:border-0"
-                      >
-                        <td className="py-2 px-3 text-zinc-700 dark:text-zinc-300">
-                          {new Date(obs.observed_at).toLocaleString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-medium text-zinc-900 dark:text-white">
-                          {obs.temperature != null
-                            ? `${Math.round(obs.temperature)}°C`
-                            : "—"}
-                        </td>
-                        <td className="py-2 px-3 text-right text-zinc-600 dark:text-zinc-400">
-                          {obs.humidity ?? "—"}%
-                        </td>
-                        <td className="py-2 px-3 text-right text-zinc-600 dark:text-zinc-400">
-                          {obs.rainfall ?? "—"} mm
-                        </td>
-                        <td className="py-2 px-3 text-zinc-600 dark:text-zinc-400">
-                          {obs.condition ?? "—"}
-                        </td>
-                        <td className="py-2 px-3">
-                          {obs.temp_classification && (
-                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                              {obs.temp_classification}
-                            </span>
+        <div className="space-y-8">
+          {forecast.map((f) => {
+            const byDay = groupByDay(f.observations);
+            return (
+              <div
+                key={f.district}
+                className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6"
+              >
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-6">
+                  {selectedKelName || f.district}
+                </h2>
+                {[...byDay.entries()].map(([dayLabel, obs], dayIdx) => (
+                  <div key={dayLabel} className={dayIdx > 0 ? "mt-6" : ""}>
+                    <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wide">
+                      {dayLabel}
+                    </h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                      {obs.map((o, i) => (
+                        <ForecastCard
+                          key={i}
+                          temperature={o.temperature}
+                          humidity={o.humidity}
+                          rainfall={o.rainfall}
+                          wind_speed={o.wind_speed}
+                          condition={getConditionCode(o.condition)}
+                          condition_desc={o.condition}
+                          isDay={isDaytime(o.observed_at)}
+                          timeLabel={new Date(o.observed_at).toLocaleTimeString(
+                            "id-ID",
+                            { hour: "2-digit", minute: "2-digit" }
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          dateLabel={new Date(o.observed_at).toLocaleDateString(
+                            "id-ID",
+                            { day: "numeric", month: "short" }
+                          )}
+                          classification={o.temp_classification}
+                          delay={i * 80}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
