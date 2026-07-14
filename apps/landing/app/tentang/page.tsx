@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Icon from "../components/Icon";
 
 export const metadata: Metadata = {
   title: "Tentang",
@@ -15,7 +16,7 @@ export default function TentangPage() {
 
       <div className="prose prose-zinc dark:prose-invert max-w-none space-y-6">
         <section>
-          <h2 className="text-xl font-semibold">🌤 Apa ini?</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2"><Icon name="cloud-sun" size={20} /> Apa ini?</h2>
           <p>
             Weather Data Platform Medan adalah platform pengolahan data cuaca
             untuk Kota Medan. Platform ini mengambil data dari BMKG (Badan
@@ -25,7 +26,7 @@ export default function TentangPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">🔧 Teknologi</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2"><Icon name="gauge" size={20} /> Teknologi</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             {[
               { name: "ETL Pipeline", desc: "Python, Pandas, Requests" },
@@ -51,7 +52,7 @@ export default function TentangPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">📊 Arsitektur</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2"><Icon name="bar-chart" size={20} /> Arsitektur</h2>
           <p>
             Data mengalir dari BMKG API → ETL Extract → Transform (cleaning,
             klasifikasi, anomaly detection) → Load ke Data Warehouse (star
@@ -64,7 +65,7 @@ export default function TentangPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">🎯 Tujuan</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2"><Icon name="info" size={20} /> Tujuan</h2>
           <p>
             Project ini dibangun sebagai portfolio profesional untuk menunjukkan
             kemampuan Data Engineer: ETL pipeline, data warehouse design,

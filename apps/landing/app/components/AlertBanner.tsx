@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "./Icon";
 import type { AlertData } from "@/lib/api";
 
 type Alert = AlertData["alerts"][number];
@@ -44,8 +45,8 @@ export default function AlertBanner({ alerts }: { alerts: Alert[] }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wide">
-              ⚠️ {primary.severity}
+            <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1">
+              <Icon name="alert" size={14} /> {primary.severity}
             </span>
             <span className="text-xs opacity-70">•</span>
             <span className="text-xs font-medium">{primary.event}</span>
@@ -55,7 +56,7 @@ export default function AlertBanner({ alerts }: { alerts: Alert[] }) {
             {primary.description}
           </p>
           <div className="flex items-center gap-3 mt-2 text-xs opacity-70">
-            <span>🕐 {formatTime(primary.effective)} – {formatTime(primary.expires)}</span>
+            <span className="flex items-center gap-1"><Icon name="clock" size={12} /> {formatTime(primary.effective)} – {formatTime(primary.expires)}</span>
             {primary.web && (
               <a
                 href={primary.web}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import WeatherIcon from "./WeatherIcon";
+import Icon from "./Icon";
 
 interface Props {
   temperature: number | null;
@@ -72,7 +73,7 @@ export default function ForecastCard({
             ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300"
             : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
         }`}>
-          {isDay ? "☀️ Siang" : "🌙 Malam"}
+          {isDay ? <><Icon name="sun" size={10} /> Siang</> : <><Icon name="moon" size={10} /> Malam</>}
         </span>
 
         {/* Weather Icon */}

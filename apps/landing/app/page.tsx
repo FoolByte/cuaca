@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Icon from "./components/Icon";
 import { getCurrentWeather, getAlerts } from "@/lib/api";
 import HomeClient from "./components/HomeClient";
 
@@ -56,7 +57,7 @@ export default async function HomePage() {
             {alerts.length > 0 && (
               <div className="max-w-2xl mx-auto mb-8">
                 <div className="bg-yellow-500/20 backdrop-blur border border-yellow-400/30 rounded-xl px-4 py-3 text-sm">
-                  <span className="text-yellow-300 font-bold">⚠️ Peringatan: </span>
+                  <span className="text-yellow-300 font-bold flex items-center gap-1"><Icon name="alert" size={14} /> Peringatan: </span>
                   <span className="text-yellow-100">{alerts[0].headline}</span>
                 </div>
               </div>
@@ -66,21 +67,21 @@ export default async function HomePage() {
             <div className="flex flex-wrap justify-center gap-3">
               <Link
                 href="/cuaca"
-                className="px-6 py-3 bg-white text-blue-700 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg shadow-blue-900/20"
+                className="px-6 py-3 bg-white text-blue-700 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-1.5"
               >
-                🗺️ Peta Cuaca
+                <Icon name="map" size={16} /> Peta Cuaca
               </Link>
               <Link
                 href="/forecast"
-                className="px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-semibold hover:bg-white/20 backdrop-blur transition-colors"
+                className="px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-semibold hover:bg-white/20 backdrop-blur transition-colors flex items-center gap-1.5"
               >
-                📊 Forecast
+                <Icon name="bar-chart" size={16} /> Forecast
               </Link>
               <Link
                 href="/trend"
-                className="px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-semibold hover:bg-white/20 backdrop-blur transition-colors"
+                className="px-6 py-3 bg-white/10 text-white border border-white/20 rounded-xl font-semibold hover:bg-white/20 backdrop-blur transition-colors flex items-center gap-1.5"
               >
-                📈 Trend
+                <Icon name="trending-up" size={16} /> Trend
               </Link>
             </div>
           </div>
@@ -106,28 +107,28 @@ export default async function HomePage() {
           {[
             {
               href: "/forecast",
-              icon: "📊",
+              icon: "bar-chart",
               bg: "from-orange-500 to-rose-500",
               title: "Forecast",
               desc: "Prediksi cuaca 3 hari ke depan",
             },
             {
               href: "/trend",
-              icon: "📈",
+              icon: "trending-up",
               bg: "from-emerald-500 to-teal-500",
               title: "Trend",
               desc: "Analisis tren suhu & kelembaban",
             },
             {
               href: "/heatmap",
-              icon: "🗺️",
+              icon: "map",
               bg: "from-violet-500 to-purple-500",
               title: "Heatmap",
               desc: "Peta persebaran suhu per kecamatan",
             },
             {
               href: "/cuaca",
-              icon: "🌤️",
+              icon: "cloud-sun",
               bg: "from-sky-500 to-blue-500",
               title: "Peta Interaktif",
               desc: "Peta SVG kelurahan Kota Medan",
@@ -142,7 +143,7 @@ export default async function HomePage() {
                 className={`absolute inset-0 bg-gradient-to-br ${item.bg} opacity-10 group-hover:opacity-20 transition-opacity`}
               />
               <div className="relative">
-                <span className="text-2xl">{item.icon}</span>
+                <Icon name={item.icon} size={24} />
                 <h3 className="font-bold mt-2 text-zinc-900 dark:text-white">
                   {item.title}
                 </h3>

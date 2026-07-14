@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import MedanSvgMap from "./MedanSvgMap";
 import AlertBanner from "./AlertBanner";
+import Icon from "./Icon";
 import type { MapWeatherData, AlertData } from "@/lib/api";
 import type { SvgFeature } from "@/lib/geo-to-svg";
 
@@ -154,19 +155,19 @@ export default function CuacaLayout({
           {/* Weather metrics grid */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <MetricCard
-              icon="💧"
+              icon={<Icon name="droplet" size={14} className="text-blue-500" />}
               label="Kelembaban"
               value={selected.weather.humidity != null ? `${selected.weather.humidity}%` : "—"}
               sub={selected.classification.humidity}
             />
             <MetricCard
-              icon="🌧️"
+              icon={<Icon name="cloud-rain" size={14} className="text-cyan-500" />}
               label="Hujan"
               value={selected.weather.rainfall != null ? `${selected.weather.rainfall} mm` : "—"}
               sub={selected.classification.rainfall}
             />
             <MetricCard
-              icon="💨"
+              icon={<Icon name="wind" size={14} className="text-emerald-500" />}
               label="Angin"
               value={selected.weather.wind_speed != null ? `${selected.weather.wind_speed} km/h` : "—"}
               sub={
@@ -176,17 +177,17 @@ export default function CuacaLayout({
               }
             />
             <MetricCard
-              icon="👁️"
+              icon={<Icon name="eye" size={14} className="text-violet-500" />}
               label="Visibilitas"
               value={selected.weather.visibility != null ? `${selected.weather.visibility} km` : "—"}
             />
             <MetricCard
-              icon="☁️"
+              icon={<Icon name="cloud" size={14} className="text-zinc-500" />}
               label="Awan"
               value={selected.weather.cloud_coverage != null ? `${selected.weather.cloud_coverage}%` : "—"}
             />
             <MetricCard
-              icon="📊"
+              icon={<Icon name="gauge" size={14} className="text-amber-500" />}
               label="Tekanan"
               value={selected.weather.pressure != null ? `${selected.weather.pressure} hPa` : "—"}
             />
@@ -195,21 +196,21 @@ export default function CuacaLayout({
           {/* Coordinates */}
           {selected.location.latitude && selected.location.longitude && (
             <div className="text-xs text-zinc-400 border-t border-zinc-100 dark:border-zinc-700 pt-3">
-              📍 {selected.location.latitude}, {selected.location.longitude}
+              <Icon name="map-pin" size={12} /> {selected.location.latitude}, {selected.location.longitude}
             </div>
           )}
 
           {/* Observed at */}
           {selected.observed_at && (
             <p className="text-xs text-zinc-400 mt-2">
-              🕐 {new Date(selected.observed_at).toLocaleString("id-ID")}
+              <Icon name="clock" size={12} /> {new Date(selected.observed_at).toLocaleString("id-ID")}
             </p>
           )}
 
           {/* Source */}
           {selected.source && (
             <p className="text-xs text-zinc-400 mt-1">
-              📡 Sumber: {selected.source}
+              <Icon name="satellite" size={12} /> Sumber: {selected.source}
             </p>
           )}
         </div>
@@ -224,7 +225,7 @@ function MetricCard({
   value,
   sub,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string | null;
@@ -232,7 +233,7 @@ function MetricCard({
   return (
     <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
       <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-sm">{icon}</span>
+        {icon}
         <span className="text-xs text-zinc-500 dark:text-zinc-400">{label}</span>
       </div>
       <p className="text-sm font-semibold text-zinc-900 dark:text-white">{value}</p>

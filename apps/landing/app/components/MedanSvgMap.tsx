@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "./Icon";
 import type { MapWeatherData } from "@/lib/api";
 import type { SvgFeature } from "@/lib/geo-to-svg";
 
@@ -156,7 +157,7 @@ export default function MedanSvgMap({
       {/* Hover tooltip */}
       {hoveredAlert ? (
         <div className="absolute bottom-4 left-4 bg-zinc-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg pointer-events-none z-10">
-          ⚠️ <strong>{hoveredAlert.event}</strong>
+          <Icon name="alert" size={14} /> <strong>{hoveredAlert.event}</strong>
           <br />
           {hoveredAlert.headline}
         </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Icon from "./Icon";
 
 const NAV_LINKS = [
   { href: "/", label: "Beranda" },
@@ -20,8 +21,8 @@ export default function Navbar() {
     <nav className="bg-white border-b border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="font-bold text-lg text-blue-600">
-            🌤 Cuaca Medan
+          <Link href="/" className="font-bold text-lg text-blue-600 flex items-center gap-1.5">
+            <Icon name="cloud-sun" size={20} /> Cuaca Medan
           </Link>
 
           {/* Desktop nav */}

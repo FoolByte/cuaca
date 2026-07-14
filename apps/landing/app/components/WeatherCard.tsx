@@ -1,3 +1,5 @@
+import Icon from "./Icon";
+
 interface WeatherCardProps {
   district: string;
   temperature: number | null;
@@ -47,20 +49,20 @@ export default function WeatherCard({
 
       <div className="grid grid-cols-3 gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <div>
-          <span className="block font-medium text-zinc-700 dark:text-zinc-300">
-            💧 {humidity ?? "—"}%
+          <span className="flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+            <Icon name="droplet" size={12} className="text-blue-500" /> {humidity ?? "—"}%
           </span>
           Kelembaban
         </div>
         <div>
-          <span className="block font-medium text-zinc-700 dark:text-zinc-300">
-            💨 {wind_speed ?? "—"} km/h
+          <span className="flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+            <Icon name="wind" size={12} className="text-emerald-500" /> {wind_speed ?? "—"} km/h
           </span>
           Angin
         </div>
         <div>
-          <span className="block font-medium text-zinc-700 dark:text-zinc-300">
-            🌧 {rainfall ?? "—"} mm
+          <span className="flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+            <Icon name="cloud-rain" size={12} className="text-cyan-500" /> {rainfall ?? "—"} mm
           </span>
           Hujan
         </div>
