@@ -64,30 +64,42 @@ def parse_raw_json(df: pd.DataFrame) -> pd.DataFrame:
         source = row["source"]
 
         # Extract data from provider-specific raw JSON
-        data = raw.get("data", raw)
-        if isinstance(data, list):
-            # BMKG format: data is a list of forecast groups
-            if data and isinstance(data[0], dict):
-                loc = data[0].get("lokasi", {})
-                cuaca_groups = data[0].get("cuaca", [])
-                if cuaca_groups and cuaca_groups[0]:
-                    entry = cuaca_groups[0][0]  # nearest forecast
+        # New format (individual entry): {"lokasi": {...}, "cuaca": entry}
+        # Old format (full response): {"data": [{"lokasi": {...}, "cuaca": [[entries]]}]}
+        if "lokasi" in raw and "cuaca" in raw:
+            # Individual entry format (new BMKG extract)
+            loc = raw.get("lokasi", {})
+            entry = raw.get("cuaca", {})
+            if isinstance(entry, list):
+                entry = entry[0] if entry else {}
+            location_name = loc.get("adm4") or loc.get("kecamatan", "Unknown")
+            latitude = loc.get("lat")
+            longitude = loc.get("lon")
+        elif "data" in raw:
+            data = raw.get("data", raw)
+            if isinstance(data, list):
+                if data and isinstance(data[0], dict):
+                    loc = data[0].get("lokasi", {})
+                    cuaca_groups = data[0].get("cuaca", [])
+                    if cuaca_groups and cuaca_groups[0]:
+                        entry = cuaca_groups[0][0]
+                    else:
+                        continue
+                    location_name = loc.get("adm4") or loc.get("kecamatan", "Unknown")
+                    latitude = loc.get("lat")
+                    longitude = loc.get("lon")
                 else:
                     continue
-                # Use ADM4 code as location (for map matching)
-                location_name = loc.get("adm4") or loc.get("kecamatan", "Unknown")
-                latitude = loc.get("lat")
-                longitude = loc.get("lon")
-            else:
-                continue
-        elif isinstance(data, dict):
-            # Mock format: data is a dict with nested data
-            inner = data.get("data", data)
-            if isinstance(inner, dict):
-                entry = inner
-                location_name = raw.get("location", data.get("location", "Unknown"))
-                latitude = None
-                longitude = None
+            elif isinstance(data, dict):
+                # Mock format: data is a dict with nested data
+                inner = data.get("data", data)
+                if isinstance(inner, dict):
+                    entry = inner
+                    location_name = raw.get("location", data.get("location", "Unknown"))
+                    latitude = None
+                    longitude = None
+                else:
+                    continue
             else:
                 continue
         else:
