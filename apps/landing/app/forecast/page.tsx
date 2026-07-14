@@ -62,8 +62,12 @@ function isDaytime(isoStr: string): boolean {
 function groupByDay(
   obs: ForecastObs[]
 ): Map<string, ForecastObs[]> {
+  // Sort ascending first
+  const sorted = [...obs].sort(
+    (a, b) => new Date(a.observed_at).getTime() - new Date(b.observed_at).getTime()
+  );
   const map = new Map<string, ForecastObs[]>();
-  for (const o of obs) {
+  for (const o of sorted) {
     const d = new Date(o.observed_at);
     const key = d.toLocaleDateString("id-ID", {
       weekday: "long",
@@ -203,7 +207,7 @@ export default function ForecastPage() {
                     <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-3 uppercase tracking-wide">
                       {dayLabel}
                     </h3>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                    <div className="flex flex-wrap gap-3">
                       {obs.map((o, i) => (
                         <ForecastCard
                           key={i}
