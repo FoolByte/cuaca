@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
           ),
           closest AS (
             SELECT ts FROM ranked
-            WHERE cnt >= 100
+            WHERE cnt >= 10
             ORDER BY rn
             LIMIT 1
           )
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           ),
           closest AS (
             SELECT ts FROM ranked
-            WHERE cnt >= 100
+            WHERE cnt >= 10
             ORDER BY rn
             LIMIT 1
           )
