@@ -35,11 +35,36 @@ def _entry_to_raw(entry: dict, lokasi: dict) -> dict:
 
 
 def _nearest_entry(entries: list[NormalizedWeatherData]) -> NormalizedWeatherData | None:
-    """Pick the entry closest to now (current BMKG forecast cycle)."""
+    """Pick the entry closest to now (current BMKG forecast cycle).
+
+    Rounds to nearest BMKG standard interval (every 3 hours: 00, 03, 06, 09, 12, 15, 18, 21 UTC)
+    to avoid storing duplicate data for the same forecast period.
+    """
     if not entries:
         return None
     now = datetime.now(UTC).replace(tzinfo=None)
-    return min(entries, key=lambda e: abs((e.observed_at - now).total_seconds()))
+    nearest = min(entries, key=lambda e: abs((e.observed_at - now).total_seconds()))
+
+    # Round to nearest 3-hour BMKG interval (00, 03, 06, 09, 12, 15, 18, 21 UTC)
+    hour = nearest.observed_at.hour
+    rounded_hour = (hour // 3) * 3  # Round down to nearest 3-hour mark
+    rounded_dt = nearest.observed_at.replace(hour=rounded_hour, minute=0, second=0, microsecond=0)
+
+    # Create new NormalizedWeatherData with rounded timestamp
+    return NormalizedWeatherData(
+        observed_at=rounded_dt,
+        temperature=nearest.temperature,
+        humidity=nearest.humidity,
+        pressure=nearest.pressure,
+        wind_direction=nearest.wind_direction,
+        wind_speed=nearest.wind_speed,
+        rainfall=nearest.rainfall,
+        uv_index=nearest.uv_index,
+        visibility=nearest.visibility,
+        cloud_coverage=nearest.cloud_coverage,
+        condition_code=nearest.condition_code,
+        condition_desc=nearest.condition_desc,
+    )
 
 
 def main() -> None:
