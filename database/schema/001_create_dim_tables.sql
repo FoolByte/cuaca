@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS dim_time (
     is_weekend  BOOLEAN NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_dim_time_timestamp ON dim_time (timestamp);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dim_time_timestamp ON dim_time (timestamp);
 CREATE INDEX IF NOT EXISTS idx_dim_time_date ON dim_time (date);
 
 -- dim_location: lokasi (21 kecamatan Kota Medan)
