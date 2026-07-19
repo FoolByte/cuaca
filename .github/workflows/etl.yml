@@ -26,20 +26,17 @@ jobs:
         run: pip install -r etl/requirements.txt
 
       - name: Extract
-        working-directory: etl
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           WEATHER_PROVIDER: bmkg
-        run: python -m extract.run
+        run: python -m etl.extract.run
 
       - name: Transform
-        working-directory: etl
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: python -m transform.run
+        run: python -m etl.transform.run
 
       - name: Load
-        working-directory: etl
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: python -m load.run
+        run: python -m etl.load.run
