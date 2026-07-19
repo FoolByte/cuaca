@@ -54,3 +54,6 @@ coverage/
 .idea/
 *.swp
 *.swo
+
+# Graphify
+graphify-out/
