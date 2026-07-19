@@ -112,7 +112,7 @@ async function getMapWeatherData() {
     ),
     closest AS (
       SELECT ts FROM ranked
-      WHERE cnt >= 100
+      WHERE cnt >= 10
       ORDER BY rn
       LIMIT 1
     )
